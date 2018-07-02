@@ -1,0 +1,15000 @@
+
+// stub which assumes jquery is already loaded and returns it
+
+define('jquery',[], function() {
+	return $;
+});
+/**
+ * jQuery JSON Plugin
+ * version: 2.3 (2011-09-17)
+ *
+ * This document is licensed as free software under the terms of the
+ * MIT License: http://www.opensource.org/licenses/mit-license.php
+ *
+ * Brantley Harris wrote this plugin. It is based somewhat on the JSON.org
+ * website's http://www.json.org/json2.js, which proclaims:
+ * "NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.", a sentiment that
+ * I uphold.
+ *
+ * It is also influenced heavily by MochiKit's serializeJSON, which is
+ * copyrighted 2005 by Bob Ippolito.
+ */
+
+(function( $ ) {
+
+	var	escapeable = /["\\\x00-\x1f\x7f-\x9f]/g,
+		meta = {
+			'\b': '\\b',
+			'\t': '\\t',
+			'\n': '\\n',
+			'\f': '\\f',
+			'\r': '\\r',
+			'"' : '\\"',
+			'\\': '\\\\'
+		};
+
+	/**
+	 * jQuery.toJSON
+	 * Converts the given argument into a JSON respresentation.
+	 *
+	 * @param o {Mixed} The json-serializble *thing* to be converted
+	 *
+	 * If an object has a toJSON prototype, that will be used to get the representation.
+	 * Non-integer/string keys are skipped in the object, as are keys that point to a
+	 * function.
+	 *
+	 */
+	$.toJSON = typeof JSON === 'object' && JSON.stringify
+		? JSON.stringify
+		: function( o ) {
+
+		if ( o === null ) {
+			return 'null';
+		}
+
+		var type = typeof o;
+
+		if ( type === 'undefined' ) {
+			return undefined;
+		}
+		if ( type === 'number' || type === 'boolean' ) {
+			return '' + o;
+		}
+		if ( type === 'string') {
+			return $.quoteString( o );
+		}
+		if ( type === 'object' ) {
+			if ( typeof o.toJSON === 'function' ) {
+				return $.toJSON( o.toJSON() );
+			}
+			if ( o.constructor === Date ) {
+				var	month = o.getUTCMonth() + 1,
+					day = o.getUTCDate(),
+					year = o.getUTCFullYear(),
+					hours = o.getUTCHours(),
+					minutes = o.getUTCMinutes(),
+					seconds = o.getUTCSeconds(),
+					milli = o.getUTCMilliseconds();
+
+				if ( month < 10 ) {
+					month = '0' + month;
+				}
+				if ( day < 10 ) {
+					day = '0' + day;
+				}
+				if ( hours < 10 ) {
+					hours = '0' + hours;
+				}
+				if ( minutes < 10 ) {
+					minutes = '0' + minutes;
+				}
+				if ( seconds < 10 ) {
+					seconds = '0' + seconds;
+				}
+				if ( milli < 100 ) {
+					milli = '0' + milli;
+				}
+				if ( milli < 10 ) {
+					milli = '0' + milli;
+				}
+				return '"' + year + '-' + month + '-' + day + 'T' +
+					hours + ':' + minutes + ':' + seconds +
+					'.' + milli + 'Z"';
+			}
+			if ( o.constructor === Array ) {
+				var ret = [];
+				for ( var i = 0; i < o.length; i++ ) {
+					ret.push( $.toJSON( o[i] ) || 'null' );
+				}
+				return '[' + ret.join(',') + ']';
+			}
+			var	name,
+				val,
+				pairs = [];
+			for ( var k in o ) {
+				type = typeof k;
+				if ( type === 'number' ) {
+					name = '"' + k + '"';
+				} else if (type === 'string') {
+					name = $.quoteString(k);
+				} else {
+					// Keys must be numerical or string. Skip others
+					continue;
+				}
+				type = typeof o[k];
+
+				if ( type === 'function' || type === 'undefined' ) {
+					// Invalid values like these return undefined
+					// from toJSON, however those object members
+					// shouldn't be included in the JSON string at all.
+					continue;
+				}
+				val = $.toJSON( o[k] );
+				pairs.push( name + ':' + val );
+			}
+			return '{' + pairs.join( ',' ) + '}';
+		}
+	};
+
+	/**
+	 * jQuery.evalJSON
+	 * Evaluates a given piece of json source.
+	 *
+	 * @param src {String}
+	 */
+	$.evalJSON = typeof JSON === 'object' && JSON.parse
+		? JSON.parse
+		: function( src ) {
+		return eval('(' + src + ')');
+	};
+
+	/**
+	 * jQuery.secureEvalJSON
+	 * Evals JSON in a way that is *more* secure.
+	 *
+	 * @param src {String}
+	 */
+	$.secureEvalJSON = typeof JSON === 'object' && JSON.parse
+		? JSON.parse
+		: function( src ) {
+
+		var filtered =
+			src
+			.replace( /\\["\\\/bfnrtu]/g, '@' )
+			.replace( /"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g, ']')
+			.replace( /(?:^|:|,)(?:\s*\[)+/g, '');
+
+		if ( /^[\],:{}\s]*$/.test( filtered ) ) {
+			return eval( '(' + src + ')' );
+		} else {
+			throw new SyntaxError( 'Error parsing JSON, source is not valid.' );
+		}
+	};
+
+	/**
+	 * jQuery.quoteString
+	 * Returns a string-repr of a string, escaping quotes intelligently.
+	 * Mostly a support function for toJSON.
+	 * Examples:
+	 * >>> jQuery.quoteString('apple')
+	 * "apple"
+	 *
+	 * >>> jQuery.quoteString('"Where are we going?", she asked.')
+	 * "\"Where are we going?\", she asked."
+	 */
+	$.quoteString = function( string ) {
+		if ( string.match( escapeable ) ) {
+			return '"' + string.replace( escapeable, function( a ) {
+				var c = meta[a];
+				if ( typeof c === 'string' ) {
+					return c;
+				}
+				c = a.charCodeAt();
+				return '\\u00' + Math.floor(c / 16).toString(16) + (c % 16).toString(16);
+			}) + '"';
+		}
+		return '"' + string + '"';
+	};
+
+})( jQuery );
+
+define("jquery.json", function(){});
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/util/common',['require','jquery','jquery.json'],function(require) {
+    require('jquery');
+    require('jquery.json');
+    return {
+      uuid: function() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          var r, v;
+          r = Math.random() * 16 | 0;
+          v = c === 'x' ? r : r & 0x3 | 0x8;
+          return v.toString(16);
+        });
+      },
+      toJSON: function(obj) {
+        return $.toJSON(obj);
+      },
+      merge: function(obj1, obj2) {
+        return $.extend(true, obj1, obj2);
+      },
+      makeWebsite: function(website) {
+        website = $.trim(website);
+        if (website.length > 0 && (!website.startsWith('h') && !website.startsWith('ht') && !website.startsWith('htt') && !website.startsWith('http') && !website.startsWith('http:') && !website.startsWith('https:') && !website.startsWith('http:/') && !website.startsWith('https:/') && !website.startsWith('http://') && !website.startsWith('https://'))) {
+          website = 'http://' + website;
+        }
+        return website;
+      },
+      hasData: function(obj) {
+        return obj && $.trim(obj).length > 0;
+      }
+    };
+  });
+
+}).call(this);
+
+ /* ===========================================================
+ * bootstrap-modalmanager.js v2.1
+ * ===========================================================
+ * Copyright 2012 Jordan Schroter.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ========================================================== */
+
+!function ($) {
+
+	 // jshint ;_;
+
+	/* MODAL MANAGER CLASS DEFINITION
+	* ====================== */
+
+	var ModalManager = function (element, options) {
+		this.init(element, options);
+	}
+
+	ModalManager.prototype = {
+
+		constructor: ModalManager,
+
+		init: function (element, options) {
+			this.$element = $(element);
+			this.options = $.extend({}, $.fn.modalmanager.defaults, this.$element.data(), typeof options == 'object' && options);
+			this.stack = [];
+			this.backdropCount = 0;
+
+			if (this.options.resize) {
+				var resizeTimeout,
+					that = this;
+
+				$(window).on('resize.modal', function(){
+					resizeTimeout && clearTimeout(resizeTimeout);
+					resizeTimeout = setTimeout(function(){
+						for (var i = 0; i < that.stack.length; i++){
+							that.stack[i].isShown && that.stack[i].layout();
+						};
+					}, 10);
+				});
+			}
+		},
+
+		createModal: function (element, options) {
+			$(element).modal($.extend({ manager: this }, options));
+		},
+
+		appendModal: function (modal) {
+			this.stack.push(modal);
+
+			var that = this;
+
+			modal.$element.on('show.modalmanager', targetIsSelf(function (e) {
+
+				var showModal = function(){
+					modal.isShown = true;
+
+					var transition = $.support.transition && modal.$element.hasClass('fade');
+
+					that.$element
+						.toggleClass('modal-open', that.hasOpenModal())
+						.toggleClass('page-overflow', $(window).height() < that.$element.height());
+
+					modal.$parent = modal.$element.parent();
+
+					modal.$container = that.createContainer(modal);
+
+					modal.$element.appendTo(modal.$container);
+
+					that.backdrop(modal, function () {
+
+						modal.$element.show();
+
+						if (transition) {
+							modal.$element[0].style.display = 'run-in';
+							modal.$element[0].offsetWidth;
+							modal.$element.one($.support.transition.end, function () { modal.$element[0].style.display = 'block' });
+						}
+
+						modal.layout();
+
+						modal.$element
+							.addClass('in')
+							.attr('aria-hidden', false);
+
+						var complete = function () {
+							that.setFocus();
+							modal.$element.triggerHandler('shown');
+						}
+
+						transition ?
+							modal.$element.one($.support.transition.end, complete) :
+							complete();
+					});
+				}
+
+				modal.options.replace ?
+					that.replace(showModal) :
+					showModal();
+			}));
+
+			modal.$element.on('hidden.modalmanager', targetIsSelf(function (e) {
+
+				that.backdrop(modal);
+
+				if (modal.$backdrop){
+					$.support.transition && modal.$element.hasClass('fade') ?
+						modal.$backdrop.one($.support.transition.end, function () { that.destroyModal(modal) }) :
+						that.destroyModal(modal);
+				} else {
+					that.destroyModal(modal);
+				}
+
+			}));
+
+			modal.$element.on('destroy.modalmanager', targetIsSelf(function (e) {
+				that.removeModal(modal);
+			}));
+
+		},
+
+		destroyModal: function (modal) {
+
+			modal.destroy();
+
+			var hasOpenModal = this.hasOpenModal();
+
+			this.$element.toggleClass('modal-open', hasOpenModal);
+
+			if (!hasOpenModal){
+				this.$element.removeClass('page-overflow');
+			}
+
+			this.removeContainer(modal);
+
+			this.setFocus();
+		},
+
+		hasOpenModal: function () {
+			for (var i = 0; i < this.stack.length; i++){
+				if (this.stack[i].isShown) return true;
+			}
+
+			return false;
+		},
+
+		setFocus: function () {
+			var topModal;
+
+			for (var i = 0; i < this.stack.length; i++){
+				if (this.stack[i].isShown) topModal = this.stack[i];
+			}
+
+			if (!topModal) return;
+
+			topModal.focus();
+
+		},
+
+		removeModal: function (modal) {
+			modal.$element.off('.modalmanager');
+			if (modal.$backdrop) this.removeBackdrop.call(modal);
+			this.stack.splice(this.getIndexOfModal(modal), 1);
+		},
+
+		getModalAt: function (index) {
+			return this.stack[index];
+		},
+
+		getIndexOfModal: function (modal) {
+			for (var i = 0; i < this.stack.length; i++){
+				if (modal === this.stack[i]) return i;
+			}
+		},
+
+		replace: function (callback) {
+			var topModal;
+
+			for (var i = 0; i < this.stack.length; i++){
+				if (this.stack[i].isShown) topModal = this.stack[i];
+			}
+
+			if (topModal) {
+				this.$backdropHandle = topModal.$backdrop
+				topModal.$backdrop = null;
+
+				callback && topModal.$element.one('hidden',
+					targetIsSelf( $.proxy(callback, this) ));
+
+				topModal.hide();
+			} else if (callback) {
+				callback();
+			}
+		},
+
+		removeBackdrop: function (modal) {
+			modal.$backdrop.remove();
+			modal.$backdrop = null;
+		},
+
+		createBackdrop: function (animate) {
+			var $backdrop;
+
+			if (!this.$backdropHandle) {
+				$backdrop = $('<div class="modal-backdrop ' + animate + '" />')
+					.appendTo(this.$element);
+			} else {
+				$backdrop = this.$backdropHandle;
+				$backdrop.off('.modalmanager');
+				this.$backdropHandle = null;
+				this.isLoading && this.removeSpinner();
+			}
+
+			return $backdrop
+		},
+
+		removeContainer: function (modal) {
+			modal.$container.remove();
+			modal.$container = null;
+		},
+
+		createContainer: function (modal) {
+			var $container;
+
+			$container = $('<div class="modal-scrollable">')
+				.css('z-index', getzIndex( 'modal',
+					modal ? this.getIndexOfModal(modal) : this.stack.length ))
+				.appendTo(this.$element);
+
+			if (modal && modal.options.backdrop != 'static') {
+				$container.on('click.modal', targetIsSelf(function (e) {
+					modal.hide();
+				}));
+			} else if (modal) {
+				$container.on('click.modal', targetIsSelf(function (e) {
+					modal.attention();
+				}));
+			}
+
+			return $container;
+
+		},
+
+		backdrop: function (modal, callback) {
+			var animate = modal.$element.hasClass('fade') ? 'fade' : '',
+				showBackdrop = modal.options.backdrop &&
+					this.backdropCount < this.options.backdropLimit;
+
+			if (modal.isShown && showBackdrop) {
+				var doAnimate = $.support.transition && animate && !this.$backdropHandle;
+
+				modal.$backdrop = this.createBackdrop(animate);
+
+				modal.$backdrop.css('z-index', getzIndex( 'backdrop', this.getIndexOfModal(modal) ))
+
+				if (doAnimate) modal.$backdrop[0].offsetWidth; // force reflow
+
+				modal.$backdrop.addClass('in');
+
+				this.backdropCount += 1;
+
+				doAnimate ?
+					modal.$backdrop.one($.support.transition.end, callback) :
+					callback();
+
+			} else if (!modal.isShown && modal.$backdrop) {
+				modal.$backdrop.removeClass('in');
+
+				this.backdropCount -= 1;
+
+				var that = this;
+
+				$.support.transition && modal.$element.hasClass('fade')?
+					modal.$backdrop.one($.support.transition.end, function () { that.removeBackdrop(modal) }) :
+					that.removeBackdrop(modal);
+
+			} else if (callback) {
+				callback();
+			}
+		},
+
+		removeSpinner: function(){
+			this.$spinner && this.$spinner.remove();
+			this.$spinner = null;
+			this.isLoading = false;
+		},
+
+		removeLoading: function () {
+			this.$backdropHandle && this.$backdropHandle.remove();
+			this.$backdropHandle = null;
+			this.removeSpinner();
+		},
+
+		loading: function (callback) {
+			callback = callback || function () { };
+
+			this.$element
+				.toggleClass('modal-open', !this.isLoading || this.hasOpenModal())
+				.toggleClass('page-overflow', $(window).height() < this.$element.height());
+
+			if (!this.isLoading) {
+
+				this.$backdropHandle = this.createBackdrop('fade');
+
+				this.$backdropHandle[0].offsetWidth; // force reflow
+
+				this.$backdropHandle
+					.css('z-index', getzIndex('backdrop', this.stack.length))
+					.addClass('in');
+
+				var $spinner = $(this.options.spinner)
+					.css('z-index', getzIndex('modal', this.stack.length))
+					.appendTo(this.$element)
+					.addClass('in');
+
+				this.$spinner = $(this.createContainer())
+					.append($spinner)
+					.on('click.modalmanager', $.proxy(this.loading, this));
+
+				this.isLoading = true;
+
+				$.support.transition ?
+				this.$backdropHandle.one($.support.transition.end, callback) :
+				callback();
+
+			} else if (this.isLoading && this.$backdropHandle) {
+				this.$backdropHandle.removeClass('in');
+
+				var that = this;
+				$.support.transition ?
+					this.$backdropHandle.one($.support.transition.end, function () { that.removeLoading() }) :
+					that.removeLoading();
+
+			} else if (callback) {
+				callback(this.isLoading);
+			}
+		}
+	}
+
+	/* PRIVATE METHODS
+	* ======================= */
+
+	// computes and caches the zindexes
+	var getzIndex = (function () {
+		var zIndexFactor,
+			baseIndex = {};
+
+		return function (type, pos) {
+
+			if (typeof zIndexFactor === 'undefined'){
+				var $baseModal = $('<div class="modal hide" />').appendTo('body'),
+					$baseBackdrop = $('<div class="modal-backdrop hide" />').appendTo('body');
+
+				baseIndex['modal'] = +$baseModal.css('z-index'),
+				baseIndex['backdrop'] = +$baseBackdrop.css('z-index'),
+				zIndexFactor = baseIndex['modal'] - baseIndex['backdrop'];
+
+				$baseModal.remove();
+				$baseBackdrop.remove();
+				$baseBackdrop = $baseModal = null;
+			}
+
+			return baseIndex[type] + (zIndexFactor * pos);
+
+		}
+	}())
+
+	// make sure the event target is the modal itself in order to prevent
+	// other components such as tabsfrom triggering the modal manager.
+	// if Boostsrap namespaced events, this would not be needed.
+	function targetIsSelf(callback){
+		return function (e) {
+			if (this === e.target){
+				return callback.apply(this, arguments);
+			}
+		}
+	}
+
+
+	/* MODAL MANAGER PLUGIN DEFINITION
+	* ======================= */
+
+	$.fn.modalmanager = function (option, args) {
+		return this.each(function () {
+			var $this = $(this),
+				data = $this.data('modalmanager');
+
+			if (!data) $this.data('modalmanager', (data = new ModalManager(this, option)))
+			if (typeof option === 'string') data[option].apply(data, [].concat(args))
+		})
+	}
+
+	$.fn.modalmanager.defaults = {
+		backdropLimit: 999,
+		resize: false,
+		spinner: '<div class="loading-spinner fade" style="width: 200px; margin-left: -100px;"><div class="progress progress-striped active"><div class="bar" style="width: 100%;"></div></div></div>'
+	}
+
+	$.fn.modalmanager.Constructor = ModalManager
+
+}(jQuery);
+define("bootstrap-modal/bootstrap-modalmanager", function(){});
+
+/* ===================================================
+ * bootstrap-transition.js v2.2.1
+ * http://twitter.github.com/bootstrap/javascript.html#transitions
+ * ===================================================
+ * Copyright 2012 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ========================================================== */
+
+
+!function ($) {
+
+   // jshint ;_;
+
+
+  /* CSS TRANSITION SUPPORT (http://www.modernizr.com/)
+   * ======================================================= */
+
+  $(function () {
+
+    $.support.transition = (function () {
+
+      var transitionEnd = (function () {
+
+        var el = document.createElement('bootstrap')
+          , transEndEventNames = {
+               'WebkitTransition' : 'webkitTransitionEnd'
+            ,  'MozTransition'    : 'transitionend'
+            ,  'OTransition'      : 'oTransitionEnd otransitionend'
+            ,  'transition'       : 'transitionend'
+            }
+          , name
+
+        for (name in transEndEventNames){
+          if (el.style[name] !== undefined) {
+            return transEndEventNames[name]
+          }
+        }
+
+      }())
+
+      return transitionEnd && {
+        end: transitionEnd
+      }
+
+    })()
+
+  })
+
+}(window.jQuery);
+define("bootstrap/bootstrap-transition", function(){});
+
+/* ===========================================================
+ * bootstrap-modal.js v2.1
+ * ===========================================================
+ * Copyright 2012 Jordan Schroter
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ========================================================== */
+
+
+!function ($) {
+
+	 // jshint ;_;
+
+	/* MODAL CLASS DEFINITION
+	* ====================== */
+
+	var Modal = function (element, options) {
+		this.init(element, options);
+	}
+
+	Modal.prototype = {
+
+		constructor: Modal,
+
+		init: function (element, options) {
+			this.options = options;
+
+			this.$element = $(element)
+				.delegate('[data-dismiss="modal"]', 'click.dismiss.modal', $.proxy(this.hide, this));
+
+			this.options.remote && this.$element.find('.modal-body').load(this.options.remote);
+
+			var manager = typeof this.options.manager === 'function' ?
+				this.options.manager.call(this) : this.options.manager;
+
+			manager = manager.appendModal ?
+				manager : $(manager).modalmanager().data('modalmanager');
+
+			manager.appendModal(this);
+		},
+
+		toggle: function () {
+			return this[!this.isShown ? 'show' : 'hide']();
+		},
+
+		show: function () {
+			var that = this,
+				e = $.Event('show');
+
+			if (this.isShown) return;
+
+			this.$element.triggerHandler(e);
+
+			if (e.isDefaultPrevented()) return;
+
+			this.escape();
+
+			this.tab();
+
+			this.options.loading && this.loading();
+		},
+
+		hide: function (e) {
+			e && e.preventDefault();
+
+			e = $.Event('hide');
+
+			this.$element.triggerHandler(e);
+
+			if (!this.isShown || e.isDefaultPrevented()) return (this.isShown = false);
+
+			this.isShown = false;
+
+			this.escape();
+
+			this.tab();
+
+			this.isLoading && this.loading();
+
+			$(document).off('focusin.modal');
+
+			this.$element
+				.removeClass('in')
+				.removeClass('animated')
+				.removeClass(this.options.attentionAnimation)
+				.removeClass('modal-overflow')
+				.attr('aria-hidden', true);
+
+			$.support.transition && this.$element.hasClass('fade') ?
+				this.hideWithTransition() :
+				this.hideModal();
+		},
+
+		layout: function () {
+			var prop = this.options.height ? 'height' : 'max-height',
+				value = this.options.height || this.options.maxHeight,
+				modalOverflow = $(window).height() - 10 < this.$element.height();
+
+			if (this.options.width){
+				this.$element.css('width', this.options.width);
+
+				var that = this;
+				this.$element.css('margin-left', function () {
+					if (/%/ig.test(that.options.width)){
+						return -(parseInt(that.options.width) / 2) + '%';
+					} else {
+						return -($(this).width() / 2) + 'px';
+					}
+				});
+			} else {
+				this.$element.css('width', '');
+				this.$element.css('margin-left', '');
+			}
+
+
+			if (value){
+				this.$element.find('.modal-body')
+					.css('overflow', 'auto')
+					.css(prop, value);
+			} else {
+				this.$element.find('.modal-body')
+					.css('overflow', '')
+					.css(prop, '');
+			}
+
+			if (modalOverflow || this.options.modalOverflow) {
+				this.$element
+					.css('margin-top', 0)
+					.addClass('modal-overflow');
+			} else {
+				this.$element
+					.css('margin-top', 0 - this.$element.height() / 2)
+					.removeClass('modal-overflow');
+			}
+		},
+
+		tab: function () {
+			var that = this;
+
+			if (this.isShown && this.options.consumeTab) {
+				/*this.$element.on('keydown.tabindex.modal', function(e){
+					if (e.keyCode && e.keyCode == 9){
+						setTimeout(function(){
+							var $active = $(document.activeElement);
+
+							if (!$active.closest(that.$element).length){
+								setTimeout(function(){
+									that.$element.click();
+								}, 0);
+							}
+						}, 0);
+					}
+				});*/
+
+				this.$element.on('keydown.tabindex.modal', '[data-tabindex]', function (e) {
+			    	if (e.keyCode && e.keyCode == 9){
+				        var $next = $(this),
+				        	$rollover = $(this);
+
+				       	that.$element.find('[data-tabindex]:enabled:not([readonly])').each(function (e) {
+			         		if (!e.shiftKey){
+			           	 		$next = $next.data('tabindex') < $(this).data('tabindex') ?
+				              		$next = $(this) :
+				              		$rollover = $(this);
+				          	} else {
+				            	$next = $next.data('tabindex') > $(this).data('tabindex') ?
+				              		$next = $(this) :
+				             		$rollover = $(this);
+				          	}
+				        });
+
+				       /*if ($next[0] !== $(this)[0]){
+				       		$next.focus();
+				       		 e.preventDefault();
+				       	}*/
+
+				        $next[0] !== $(this)[0] ?
+			          		$next.focus() : $rollover.focus();
+
+
+
+			      	}
+			    });
+			} else if (!this.isShown) {
+				this.$element.off('keydown.tabindex.modal');
+			}
+		},
+
+		escape: function () {
+			var that = this;
+			if (this.isShown && this.options.keyboard) {
+				if (!this.$element.attr('tabindex')) this.$element.attr('tabindex', -1);
+
+				this.$element.on('keyup.dismiss.modal', function (e) {
+					e.which == 27 && that.hide();
+				});
+			} else if (!this.isShown) {
+				this.$element.off('keyup.dismiss.modal')
+			}
+		},
+
+		hideWithTransition: function () {
+			var that = this
+				, timeout = setTimeout(function () {
+					that.$element.off($.support.transition.end)
+					that.hideModal()
+				}, 500);
+
+			this.$element.one($.support.transition.end, function () {
+				clearTimeout(timeout)
+				that.hideModal()
+			});
+		},
+
+		hideModal: function () {
+			this.$element
+				.hide()
+				.triggerHandler('hidden');
+
+			var prop = this.options.height ? 'height' : 'max-height';
+			var value = this.options.height || this.options.maxHeight;
+
+			if (value){
+				this.$element.find('.modal-body')
+					.css('overflow', '')
+					.css(prop, '');
+			}
+
+		},
+
+		removeLoading: function () {
+			this.$loading.remove();
+			this.$loading = null;
+			this.isLoading = false;
+		},
+
+		loading: function (callback) {
+			callback = callback || function () {};
+
+			var animate = this.$element.hasClass('fade') ? 'fade' : '';
+
+			if (!this.isLoading) {
+				var doAnimate = $.support.transition && animate;
+
+				this.$loading = $('<div class="loading-mask ' + animate + '">')
+					.append(this.options.spinner)
+					.appendTo(this.$element);
+
+				if (doAnimate) this.$loading[0].offsetWidth // force reflow
+
+				this.$loading.addClass('in')
+
+				this.isLoading = true;
+
+				doAnimate ?
+					this.$loading.one($.support.transition.end, callback) :
+					callback();
+
+			} else if (this.isLoading && this.$loading) {
+				this.$loading.removeClass('in');
+
+				var that = this;
+				$.support.transition && this.$element.hasClass('fade')?
+					this.$loading.one($.support.transition.end, function () { that.removeLoading() }) :
+					that.removeLoading();
+
+			} else if (callback) {
+				callback(this.isLoading);
+			}
+		},
+
+		focus: function () {
+			var $focusElem = this.$element.find(this.options.focusOn);
+
+			$focusElem = $focusElem.length ? $focusElem : this.$element;
+
+			$focusElem.focus();
+		},
+
+		attention: function (){
+			// NOTE: transitionEnd with keyframes causes odd behaviour
+
+			if (this.options.attentionAnimation){
+				this.$element
+					.removeClass('animated')
+					.removeClass(this.options.attentionAnimation);
+
+				var that = this;
+
+				setTimeout(function () {
+					that.$element
+						.addClass('animated')
+						.addClass(that.options.attentionAnimation);
+				}, 0);
+			}
+
+
+			this.focus();
+		},
+
+
+		destroy: function () {
+			var e = $.Event('destroy');
+			this.$element.triggerHandler(e);
+			if (e.isDefaultPrevented()) return;
+
+			this.teardown();
+		},
+
+		teardown: function () {
+			if (!this.$parent.length){
+				this.$element.remove();
+				this.$element = null;
+				return;
+			}
+
+			if (this.$parent !== this.$element.parent()){
+				this.$element.appendTo(this.$parent);
+			}
+
+			this.$element.off('.modal');
+			this.$element.removeData('modal');
+			this.$element
+				.removeClass('in')
+				.attr('aria-hidden', true);
+		}
+	}
+
+
+	/* MODAL PLUGIN DEFINITION
+	* ======================= */
+
+	$.fn.modal = function (option, args) {
+		return this.each(function () {
+			var $this = $(this),
+				data = $this.data('modal'),
+				options = $.extend({}, $.fn.modal.defaults, $this.data(), typeof option == 'object' && option);
+
+			if (!data) $this.data('modal', (data = new Modal(this, options)))
+			if (typeof option == 'string') data[option].apply(data, [].concat(args))
+			else if (options.show) data.show()
+		})
+	}
+
+	$.fn.modal.defaults = {
+		keyboard: true,
+		backdrop: true,
+		loading: false,
+		show: true,
+		width: null,
+		height: null,
+		maxHeight: null,
+		modalOverflow: false,
+		consumeTab: true,
+		focusOn: null,
+		replace: false,
+		resize: false,
+		attentionAnimation: 'shake',
+		manager: 'body',
+		spinner: '<div class="loading-spinner" style="width: 200px; margin-left: -100px;"><div class="progress progress-striped active"><div class="bar" style="width: 100%;"></div></div></div>'
+	}
+
+	$.fn.modal.Constructor = Modal
+
+
+	/* MODAL DATA-API
+	* ============== */
+
+	$(function () {
+		$(document).off('.modal').on('click.modal.data-api', '[data-toggle="modal"]', function ( e ) {
+			var $this = $(this),
+				href = $this.attr('href'),
+				$target = $($this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, ''))), //strip for ie7
+				option = $target.data('modal') ? 'toggle' : $.extend({ remote: !/#/.test(href) && href }, $target.data(), $this.data());
+
+			e.preventDefault();
+			$target
+				.modal(option)
+				.one('hide', function () {
+					$this.focus();
+				})
+		});
+	});
+
+}(window.jQuery);
+define("bootstrap-modal/bootstrap-modal", function(){});
+
+// lib/handlebars/base.js
+
+/*jshint eqnull:true*/
+this.Handlebars = {};
+
+(function(Handlebars) {
+
+Handlebars.VERSION = "1.0.rc.1";
+
+Handlebars.helpers  = {};
+Handlebars.partials = {};
+
+Handlebars.registerHelper = function(name, fn, inverse) {
+  if(inverse) { fn.not = inverse; }
+  this.helpers[name] = fn;
+};
+
+Handlebars.registerPartial = function(name, str) {
+  this.partials[name] = str;
+};
+
+Handlebars.registerHelper('helperMissing', function(arg) {
+  if(arguments.length === 2) {
+    return undefined;
+  } else {
+    throw new Error("Could not find property '" + arg + "'");
+  }
+});
+
+var toString = Object.prototype.toString, functionType = "[object Function]";
+
+Handlebars.registerHelper('blockHelperMissing', function(context, options) {
+  var inverse = options.inverse || function() {}, fn = options.fn;
+
+
+  var ret = "";
+  var type = toString.call(context);
+
+  if(type === functionType) { context = context.call(this); }
+
+  if(context === true) {
+    return fn(this);
+  } else if(context === false || context == null) {
+    return inverse(this);
+  } else if(type === "[object Array]") {
+    if(context.length > 0) {
+      return Handlebars.helpers.each(context, options);
+    } else {
+      return inverse(this);
+    }
+  } else {
+    return fn(context);
+  }
+});
+
+Handlebars.K = function() {};
+
+Handlebars.createFrame = Object.create || function(object) {
+  Handlebars.K.prototype = object;
+  var obj = new Handlebars.K();
+  Handlebars.K.prototype = null;
+  return obj;
+};
+
+Handlebars.registerHelper('each', function(context, options) {
+  var fn = options.fn, inverse = options.inverse;
+  var ret = "", data;
+
+  if (options.data) {
+    data = Handlebars.createFrame(options.data);
+  }
+
+  if(context && context.length > 0) {
+    for(var i=0, j=context.length; i<j; i++) {
+      if (data) { data.index = i; }
+      ret = ret + fn(context[i], { data: data });
+    }
+  } else {
+    ret = inverse(this);
+  }
+  return ret;
+});
+
+Handlebars.registerHelper('if', function(context, options) {
+  var type = toString.call(context);
+  if(type === functionType) { context = context.call(this); }
+
+  if(!context || Handlebars.Utils.isEmpty(context)) {
+    return options.inverse(this);
+  } else {
+    return options.fn(this);
+  }
+});
+
+Handlebars.registerHelper('unless', function(context, options) {
+  var fn = options.fn, inverse = options.inverse;
+  options.fn = inverse;
+  options.inverse = fn;
+
+  return Handlebars.helpers['if'].call(this, context, options);
+});
+
+Handlebars.registerHelper('with', function(context, options) {
+  return options.fn(context);
+});
+
+Handlebars.registerHelper('log', function(context) {
+  Handlebars.log(context);
+});
+
+}(this.Handlebars));
+;
+// lib/handlebars/utils.js
+Handlebars.Exception = function(message) {
+  var tmp = Error.prototype.constructor.apply(this, arguments);
+
+  for (var p in tmp) {
+    if (tmp.hasOwnProperty(p)) { this[p] = tmp[p]; }
+  }
+
+  this.message = tmp.message;
+};
+Handlebars.Exception.prototype = new Error();
+
+// Build out our basic SafeString type
+Handlebars.SafeString = function(string) {
+  this.string = string;
+};
+Handlebars.SafeString.prototype.toString = function() {
+  return this.string.toString();
+};
+
+(function() {
+  var escape = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#x27;",
+    "`": "&#x60;"
+  };
+
+  var badChars = /[&<>"'`]/g;
+  var possible = /[&<>"'`]/;
+
+  var escapeChar = function(chr) {
+    return escape[chr] || "&amp;";
+  };
+
+  Handlebars.Utils = {
+    escapeExpression: function(string) {
+      // don't escape SafeStrings, since they're already safe
+      if (string instanceof Handlebars.SafeString) {
+        return string.toString();
+      } else if (string == null || string === false) {
+        return "";
+      }
+
+      if(!possible.test(string)) { return string; }
+      return string.replace(badChars, escapeChar);
+    },
+
+    isEmpty: function(value) {
+      if (typeof value === "undefined") {
+        return true;
+      } else if (value === null) {
+        return true;
+      } else if (value === false) {
+        return true;
+      } else if(Object.prototype.toString.call(value) === "[object Array]" && value.length === 0) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+  };
+})();;
+// lib/handlebars/runtime.js
+Handlebars.VM = {
+  template: function(templateSpec) {
+    // Just add water
+    var container = {
+      escapeExpression: Handlebars.Utils.escapeExpression,
+      invokePartial: Handlebars.VM.invokePartial,
+      programs: [],
+      program: function(i, fn, data) {
+        var programWrapper = this.programs[i];
+        if(data) {
+          return Handlebars.VM.program(fn, data);
+        } else if(programWrapper) {
+          return programWrapper;
+        } else {
+          programWrapper = this.programs[i] = Handlebars.VM.program(fn);
+          return programWrapper;
+        }
+      },
+      programWithDepth: Handlebars.VM.programWithDepth,
+      noop: Handlebars.VM.noop
+    };
+
+    return function(context, options) {
+      options = options || {};
+      return templateSpec.call(container, Handlebars, context, options.helpers, options.partials, options.data);
+    };
+  },
+
+  programWithDepth: function(fn, data, $depth) {
+    var args = Array.prototype.slice.call(arguments, 2);
+
+    return function(context, options) {
+      options = options || {};
+
+      return fn.apply(this, [context, options.data || data].concat(args));
+    };
+  },
+  program: function(fn, data) {
+    return function(context, options) {
+      options = options || {};
+
+      return fn(context, options.data || data);
+    };
+  },
+  noop: function() { return ""; },
+  invokePartial: function(partial, name, context, helpers, partials, data) {
+    var options = { helpers: helpers, partials: partials, data: data };
+
+    if(partial === undefined) {
+      throw new Handlebars.Exception("The partial " + name + " could not be found");
+    } else if(partial instanceof Function) {
+      return partial(context, options);
+    } else if (!Handlebars.compile) {
+      throw new Handlebars.Exception("The partial " + name + " could not be compiled when running in runtime-only mode");
+    } else {
+      partials[name] = Handlebars.compile(partial, {data: data !== undefined});
+      return partials[name](context, options);
+    }
+  }
+};
+
+Handlebars.template = Handlebars.VM.template;
+;
+
+define("handlebars", function(){});
+
+(function(){define('tmpl/widget/okCancelModal',["require","handlebars"],function(n){n("handlebars");var e=Handlebars.template,t=Handlebars.templates=Handlebars.templates||{};t.widget_okCancelModal=e(function(n,e,t){t=t||n.helpers;var a,r,s="",l="function",o=this.escapeExpression;return s+='<div id="okCancelModal" class="modal fade hide">\n\n	<div class="intro show">\n		<div class="modal-header">\n			<button type="button" class="close" data-dismiss="modal">×</button>\n			<h4>',r=t.title,r?a=r.call(e,{hash:{}}):(a=e.title,a=typeof a===l?a():a),s+=o(a)+'</h4>\n		</div>\n\n		<div class="modal-body">\n			',r=t.body,r?a=r.call(e,{hash:{}}):(a=e.body,a=typeof a===l?a():a),s+=o(a)+'\n		</div>\n\n		<div class="modal-footer">\n			<a data-dismiss="modal" id="cancelButton" class="btn">Cancel</a>\n			<button id="okButton" class="btn btn-orange">Ok</button>\n		</div>\n	</div>\n\n</div>\n'})})})();
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+  define('app/util/OkCancel',['require','bootstrap-modal/bootstrap-modalmanager','bootstrap-modal/bootstrap-modal','handlebars','tmpl/widget/okCancelModal'],function(require) {
+    var OkCancel;
+    require('bootstrap-modal/bootstrap-modalmanager');
+    require('bootstrap-modal/bootstrap-modal');
+    require('handlebars');
+    require('tmpl/widget/okCancelModal');
+    return OkCancel = (function() {
+
+      function OkCancel(config) {
+        this.show = __bind(this.show, this);
+
+        this.init = __bind(this.init, this);
+
+        var defaults;
+        defaults = {
+          title: 'Please confirm...',
+          buttons: {
+            cancel: function() {
+              if (config.cancel) {
+                return config.cancel();
+              }
+            },
+            ok: function() {
+              if (config.ok) {
+                return config.ok();
+              }
+            }
+          }
+        };
+        this.settings = $.extend({}, defaults, config);
+        this.init();
+      }
+
+      OkCancel.prototype.init = function() {
+        var title,
+          _this = this;
+        if (this.settings.dialog) {
+          this.settings.body = this.settings.dialog.html();
+          title = this.settings.dialog.attr('data-title');
+          if (title) {
+            this.settings.title = title;
+          }
+        }
+        if (this.settings.autoOpen) {
+          return this.show();
+        } else if (this.settings.trigger) {
+          return this.settings.trigger.on('click', function(e) {
+            return _this.show();
+          });
+        }
+      };
+
+      OkCancel.prototype.show = function() {
+        var body, modal,
+          _this = this;
+        body = $('body');
+        modal = $('#okCancelModal', body);
+        if (modal.length) {
+          modal.remove();
+        }
+        body.prepend(Handlebars.templates.widget_okCancelModal({
+          title: this.settings.title,
+          body: this.settings.body
+        }));
+        modal = $('#okCancelModal', body);
+        modal.find('#okButton').off('click').on('click', function(e) {
+          _this.settings.buttons.ok();
+          return modal.modal('hide');
+        });
+        modal.find('.close, #cancelButton').off('click').on('click', function(e) {
+          return _this.settings.buttons.cancel();
+        });
+        modal.on('hidden', function(e) {
+          return modal.remove();
+        });
+        return modal.modal('show');
+      };
+
+      return OkCancel;
+
+    })();
+  });
+
+}).call(this);
+
+(function(){define('tmpl/widget/okModal',["require","handlebars"],function(n){n("handlebars");var e=Handlebars.template,t=Handlebars.templates=Handlebars.templates||{};t.widget_okModal=e(function(n,e,t){t=t||n.helpers;var a,r,s="",l="function",o=this.escapeExpression;return s+='<div id="okModal" class="modal fade hide">\n\n	<div class="intro show">\n		<div class="modal-header">\n			<button type="button" class="close" data-dismiss="modal">×</button>\n			<h4>',r=t.title,r?a=r.call(e,{hash:{}}):(a=e.title,a=typeof a===l?a():a),s+=o(a)+'</h4>\n		</div>\n\n		<div class="modal-body">\n			',r=t.body,r?a=r.call(e,{hash:{}}):(a=e.body,a=typeof a===l?a():a),(a||0===a)&&(s+=a),s+='\n		</div>\n\n		<div class="modal-footer">\n			<a data-dismiss="modal" id="okButton" class="btn btn-orange">Ok</a>\n		</div>\n	</div>\n\n</div>\n'})})})();
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+    __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+  define('app/util/Ok',['require','bootstrap-modal/bootstrap-modalmanager','bootstrap-modal/bootstrap-modal','app/util/OkCancel','handlebars','tmpl/widget/okModal'],function(require) {
+    var Ok, OkCancel;
+    require('bootstrap-modal/bootstrap-modalmanager');
+    require('bootstrap-modal/bootstrap-modal');
+    OkCancel = require('app/util/OkCancel');
+    require('handlebars');
+    require('tmpl/widget/okModal');
+    return Ok = (function(_super) {
+
+      __extends(Ok, _super);
+
+      function Ok(config) {
+        this.show = __bind(this.show, this);
+
+        var defaults;
+        defaults = {
+          title: 'Please confirm...',
+          buttons: {
+            ok: function() {
+              if (config.ok) {
+                return config.ok();
+              }
+            }
+          }
+        };
+        this.settings = $.extend({}, defaults, config);
+        this.init();
+      }
+
+      Ok.prototype.show = function() {
+        var body, modal,
+          _this = this;
+        body = $('body');
+        modal = $('#okModal', body);
+        if (modal.length) {
+          modal.remove();
+        }
+        body.prepend(Handlebars.templates.widget_okModal({
+          title: this.settings.title,
+          body: this.settings.body
+        }));
+        modal = $('#okModal', body);
+        modal.find('.close, #okButton').off('click').on('click', function(e) {
+          return _this.settings.buttons.ok();
+        });
+        modal.on('hidden', function(e) {
+          return modal.remove();
+        });
+        return modal.modal('show');
+      };
+
+      return Ok;
+
+    })(OkCancel);
+  });
+
+}).call(this);
+
+/**
+ * jQuery Cookie plugin
+ *
+ * Copyright (c) 2010 Klaus Hartl (stilbuero.de)
+ * Dual licensed under the MIT and GPL licenses:
+ * http://www.opensource.org/licenses/mit-license.php
+ * http://www.gnu.org/licenses/gpl.html
+ *
+ * NOTE this code has been heavily modified in-house.  Cookies are always get/set raw instead of encoded,
+ * which can be modified with {decode:true} or {encode:true}.
+ */
+jQuery.cookie = {
+	get: function(key, options) {
+    	options = options || {};
+    	var decode = options.decode ? decodeURIComponent : function(s) { return s; };
+
+    	var pairs = document.cookie.split('; ');
+    	for (var i = 0, pair; pair = pairs[i] && pairs[i].split('='); i++) {
+    		if (decode(pair[0]) === key) {
+    			var value = decode(pair[1] || ''); // IE saves cookies with empty string as "c; ", e.g. without "=" as opposed to EOMB, thus pair[1] may be undefined
+
+    			// Strip quotes if they were added
+				if (value.length > 0 && value[0] == '"' && value[value.length-1] == '"')
+					value = value.substring(1, value.length-1);
+
+    			return value;
+    		}
+    	}
+    	return null;
+    },
+    set: function(key, value, options) {
+        options = options || { path: '/' };	// JMS: changed to default to root path
+        if (value === null || value === undefined) {
+            options.expires = -1;
+        }
+
+        if (typeof options.expires === 'number') {
+            var days = options.expires, t = options.expires = new Date();
+            t.setDate(t.getDate() + days);
+        }
+
+        value = String(value);
+
+        return (document.cookie = [
+            encodeURIComponent(key), '=',
+            options.encode ? encodeURIComponent(value) : value,
+            options.expires ? '; expires=' + options.expires.toUTCString() : '', // use expires attribute, max-age is not supported by IE
+            options.path ? '; path=' + options.path : '',
+            options.domain ? '; domain=' + options.domain : '',
+            options.secure ? '; secure' : ''
+        ].join(''));
+    },
+    'delete': function(key) {
+        document.cookie = encodeURIComponent(key) + '=0; path=/; expires=Wed, 31 Dec 1969 23:59:59 GMT';
+    }
+};
+define("jquery.cookie", function(){});
+
+//     Underscore.js 1.4.2
+//     http://underscorejs.org
+//     (c) 2009-2012 Jeremy Ashkenas, DocumentCloud Inc.
+//     Underscore may be freely distributed under the MIT license.
+
+(function() {
+
+  // Baseline setup
+  // --------------
+
+  // Establish the root object, `window` in the browser, or `global` on the server.
+  var root = this;
+
+  // Save the previous value of the `_` variable.
+  var previousUnderscore = root._;
+
+  // Establish the object that gets returned to break out of a loop iteration.
+  var breaker = {};
+
+  // Save bytes in the minified (but not gzipped) version:
+  var ArrayProto = Array.prototype, ObjProto = Object.prototype, FuncProto = Function.prototype;
+
+  // Create quick reference variables for speed access to core prototypes.
+  var push             = ArrayProto.push,
+      slice            = ArrayProto.slice,
+      concat           = ArrayProto.concat,
+      unshift          = ArrayProto.unshift,
+      toString         = ObjProto.toString,
+      hasOwnProperty   = ObjProto.hasOwnProperty;
+
+  // All **ECMAScript 5** native function implementations that we hope to use
+  // are declared here.
+  var
+    nativeForEach      = ArrayProto.forEach,
+    nativeMap          = ArrayProto.map,
+    nativeReduce       = ArrayProto.reduce,
+    nativeReduceRight  = ArrayProto.reduceRight,
+    nativeFilter       = ArrayProto.filter,
+    nativeEvery        = ArrayProto.every,
+    nativeSome         = ArrayProto.some,
+    nativeIndexOf      = ArrayProto.indexOf,
+    nativeLastIndexOf  = ArrayProto.lastIndexOf,
+    nativeIsArray      = Array.isArray,
+    nativeKeys         = Object.keys,
+    nativeBind         = FuncProto.bind;
+
+  // Create a safe reference to the Underscore object for use below.
+  var _ = function(obj) {
+    if (obj instanceof _) return obj;
+    if (!(this instanceof _)) return new _(obj);
+    this._wrapped = obj;
+  };
+
+  // Export the Underscore object for **Node.js**, with
+  // backwards-compatibility for the old `require()` API. If we're in
+  // the browser, add `_` as a global object via a string identifier,
+  // for Closure Compiler "advanced" mode.
+  if (typeof exports !== 'undefined') {
+    if (typeof module !== 'undefined' && module.exports) {
+      exports = module.exports = _;
+    }
+    exports._ = _;
+  } else {
+    root['_'] = _;
+  }
+
+  // Current version.
+  _.VERSION = '1.4.2';
+
+  // Collection Functions
+  // --------------------
+
+  // The cornerstone, an `each` implementation, aka `forEach`.
+  // Handles objects with the built-in `forEach`, arrays, and raw objects.
+  // Delegates to **ECMAScript 5**'s native `forEach` if available.
+  var each = _.each = _.forEach = function(obj, iterator, context) {
+    if (obj == null) return;
+    if (nativeForEach && obj.forEach === nativeForEach) {
+      obj.forEach(iterator, context);
+    } else if (obj.length === +obj.length) {
+      for (var i = 0, l = obj.length; i < l; i++) {
+        if (iterator.call(context, obj[i], i, obj) === breaker) return;
+      }
+    } else {
+      for (var key in obj) {
+        if (_.has(obj, key)) {
+          if (iterator.call(context, obj[key], key, obj) === breaker) return;
+        }
+      }
+    }
+  };
+
+  // Return the results of applying the iterator to each element.
+  // Delegates to **ECMAScript 5**'s native `map` if available.
+  _.map = _.collect = function(obj, iterator, context) {
+    var results = [];
+    if (obj == null) return results;
+    if (nativeMap && obj.map === nativeMap) return obj.map(iterator, context);
+    each(obj, function(value, index, list) {
+      results[results.length] = iterator.call(context, value, index, list);
+    });
+    return results;
+  };
+
+  // **Reduce** builds up a single result from a list of values, aka `inject`,
+  // or `foldl`. Delegates to **ECMAScript 5**'s native `reduce` if available.
+  _.reduce = _.foldl = _.inject = function(obj, iterator, memo, context) {
+    var initial = arguments.length > 2;
+    if (obj == null) obj = [];
+    if (nativeReduce && obj.reduce === nativeReduce) {
+      if (context) iterator = _.bind(iterator, context);
+      return initial ? obj.reduce(iterator, memo) : obj.reduce(iterator);
+    }
+    each(obj, function(value, index, list) {
+      if (!initial) {
+        memo = value;
+        initial = true;
+      } else {
+        memo = iterator.call(context, memo, value, index, list);
+      }
+    });
+    if (!initial) throw new TypeError('Reduce of empty array with no initial value');
+    return memo;
+  };
+
+  // The right-associative version of reduce, also known as `foldr`.
+  // Delegates to **ECMAScript 5**'s native `reduceRight` if available.
+  _.reduceRight = _.foldr = function(obj, iterator, memo, context) {
+    var initial = arguments.length > 2;
+    if (obj == null) obj = [];
+    if (nativeReduceRight && obj.reduceRight === nativeReduceRight) {
+      if (context) iterator = _.bind(iterator, context);
+      return arguments.length > 2 ? obj.reduceRight(iterator, memo) : obj.reduceRight(iterator);
+    }
+    var length = obj.length;
+    if (length !== +length) {
+      var keys = _.keys(obj);
+      length = keys.length;
+    }
+    each(obj, function(value, index, list) {
+      index = keys ? keys[--length] : --length;
+      if (!initial) {
+        memo = obj[index];
+        initial = true;
+      } else {
+        memo = iterator.call(context, memo, obj[index], index, list);
+      }
+    });
+    if (!initial) throw new TypeError('Reduce of empty array with no initial value');
+    return memo;
+  };
+
+  // Return the first value which passes a truth test. Aliased as `detect`.
+  _.find = _.detect = function(obj, iterator, context) {
+    var result;
+    any(obj, function(value, index, list) {
+      if (iterator.call(context, value, index, list)) {
+        result = value;
+        return true;
+      }
+    });
+    return result;
+  };
+
+  // Return all the elements that pass a truth test.
+  // Delegates to **ECMAScript 5**'s native `filter` if available.
+  // Aliased as `select`.
+  _.filter = _.select = function(obj, iterator, context) {
+    var results = [];
+    if (obj == null) return results;
+    if (nativeFilter && obj.filter === nativeFilter) return obj.filter(iterator, context);
+    each(obj, function(value, index, list) {
+      if (iterator.call(context, value, index, list)) results[results.length] = value;
+    });
+    return results;
+  };
+
+  // Return all the elements for which a truth test fails.
+  _.reject = function(obj, iterator, context) {
+    var results = [];
+    if (obj == null) return results;
+    each(obj, function(value, index, list) {
+      if (!iterator.call(context, value, index, list)) results[results.length] = value;
+    });
+    return results;
+  };
+
+  // Determine whether all of the elements match a truth test.
+  // Delegates to **ECMAScript 5**'s native `every` if available.
+  // Aliased as `all`.
+  _.every = _.all = function(obj, iterator, context) {
+    iterator || (iterator = _.identity);
+    var result = true;
+    if (obj == null) return result;
+    if (nativeEvery && obj.every === nativeEvery) return obj.every(iterator, context);
+    each(obj, function(value, index, list) {
+      if (!(result = result && iterator.call(context, value, index, list))) return breaker;
+    });
+    return !!result;
+  };
+
+  // Determine if at least one element in the object matches a truth test.
+  // Delegates to **ECMAScript 5**'s native `some` if available.
+  // Aliased as `any`.
+  var any = _.some = _.any = function(obj, iterator, context) {
+    iterator || (iterator = _.identity);
+    var result = false;
+    if (obj == null) return result;
+    if (nativeSome && obj.some === nativeSome) return obj.some(iterator, context);
+    each(obj, function(value, index, list) {
+      if (result || (result = iterator.call(context, value, index, list))) return breaker;
+    });
+    return !!result;
+  };
+
+  // Determine if the array or object contains a given value (using `===`).
+  // Aliased as `include`.
+  _.contains = _.include = function(obj, target) {
+    var found = false;
+    if (obj == null) return found;
+    if (nativeIndexOf && obj.indexOf === nativeIndexOf) return obj.indexOf(target) != -1;
+    found = any(obj, function(value) {
+      return value === target;
+    });
+    return found;
+  };
+
+  // Invoke a method (with arguments) on every item in a collection.
+  _.invoke = function(obj, method) {
+    var args = slice.call(arguments, 2);
+    return _.map(obj, function(value) {
+      return (_.isFunction(method) ? method : value[method]).apply(value, args);
+    });
+  };
+
+  // Convenience version of a common use case of `map`: fetching a property.
+  _.pluck = function(obj, key) {
+    return _.map(obj, function(value){ return value[key]; });
+  };
+
+  // Convenience version of a common use case of `filter`: selecting only objects
+  // with specific `key:value` pairs.
+  _.where = function(obj, attrs) {
+    if (_.isEmpty(attrs)) return [];
+    return _.filter(obj, function(value) {
+      for (var key in attrs) {
+        if (attrs[key] !== value[key]) return false;
+      }
+      return true;
+    });
+  };
+
+  // Return the maximum element or (element-based computation).
+  // Can't optimize arrays of integers longer than 65,535 elements.
+  // See: https://bugs.webkit.org/show_bug.cgi?id=80797
+  _.max = function(obj, iterator, context) {
+    if (!iterator && _.isArray(obj) && obj[0] === +obj[0] && obj.length < 65535) {
+      return Math.max.apply(Math, obj);
+    }
+    if (!iterator && _.isEmpty(obj)) return -Infinity;
+    var result = {computed : -Infinity};
+    each(obj, function(value, index, list) {
+      var computed = iterator ? iterator.call(context, value, index, list) : value;
+      computed >= result.computed && (result = {value : value, computed : computed});
+    });
+    return result.value;
+  };
+
+  // Return the minimum element (or element-based computation).
+  _.min = function(obj, iterator, context) {
+    if (!iterator && _.isArray(obj) && obj[0] === +obj[0] && obj.length < 65535) {
+      return Math.min.apply(Math, obj);
+    }
+    if (!iterator && _.isEmpty(obj)) return Infinity;
+    var result = {computed : Infinity};
+    each(obj, function(value, index, list) {
+      var computed = iterator ? iterator.call(context, value, index, list) : value;
+      computed < result.computed && (result = {value : value, computed : computed});
+    });
+    return result.value;
+  };
+
+  // Shuffle an array.
+  _.shuffle = function(obj) {
+    var rand;
+    var index = 0;
+    var shuffled = [];
+    each(obj, function(value) {
+      rand = _.random(index++);
+      shuffled[index - 1] = shuffled[rand];
+      shuffled[rand] = value;
+    });
+    return shuffled;
+  };
+
+  // An internal function to generate lookup iterators.
+  var lookupIterator = function(value) {
+    return _.isFunction(value) ? value : function(obj){ return obj[value]; };
+  };
+
+  // Sort the object's values by a criterion produced by an iterator.
+  _.sortBy = function(obj, value, context) {
+    var iterator = lookupIterator(value);
+    return _.pluck(_.map(obj, function(value, index, list) {
+      return {
+        value : value,
+        index : index,
+        criteria : iterator.call(context, value, index, list)
+      };
+    }).sort(function(left, right) {
+      var a = left.criteria;
+      var b = right.criteria;
+      if (a !== b) {
+        if (a > b || a === void 0) return 1;
+        if (a < b || b === void 0) return -1;
+      }
+      return left.index < right.index ? -1 : 1;
+    }), 'value');
+  };
+
+  // An internal function used for aggregate "group by" operations.
+  var group = function(obj, value, context, behavior) {
+    var result = {};
+    var iterator = lookupIterator(value);
+    each(obj, function(value, index) {
+      var key = iterator.call(context, value, index, obj);
+      behavior(result, key, value);
+    });
+    return result;
+  };
+
+  // Groups the object's values by a criterion. Pass either a string attribute
+  // to group by, or a function that returns the criterion.
+  _.groupBy = function(obj, value, context) {
+    return group(obj, value, context, function(result, key, value) {
+      (_.has(result, key) ? result[key] : (result[key] = [])).push(value);
+    });
+  };
+
+  // Counts instances of an object that group by a certain criterion. Pass
+  // either a string attribute to count by, or a function that returns the
+  // criterion.
+  _.countBy = function(obj, value, context) {
+    return group(obj, value, context, function(result, key, value) {
+      if (!_.has(result, key)) result[key] = 0;
+      result[key]++;
+    });
+  };
+
+  // Use a comparator function to figure out the smallest index at which
+  // an object should be inserted so as to maintain order. Uses binary search.
+  _.sortedIndex = function(array, obj, iterator, context) {
+    iterator = iterator == null ? _.identity : lookupIterator(iterator);
+    var value = iterator.call(context, obj);
+    var low = 0, high = array.length;
+    while (low < high) {
+      var mid = (low + high) >>> 1;
+      iterator.call(context, array[mid]) < value ? low = mid + 1 : high = mid;
+    }
+    return low;
+  };
+
+  // Safely convert anything iterable into a real, live array.
+  _.toArray = function(obj) {
+    if (!obj) return [];
+    if (obj.length === +obj.length) return slice.call(obj);
+    return _.values(obj);
+  };
+
+  // Return the number of elements in an object.
+  _.size = function(obj) {
+    return (obj.length === +obj.length) ? obj.length : _.keys(obj).length;
+  };
+
+  // Array Functions
+  // ---------------
+
+  // Get the first element of an array. Passing **n** will return the first N
+  // values in the array. Aliased as `head` and `take`. The **guard** check
+  // allows it to work with `_.map`.
+  _.first = _.head = _.take = function(array, n, guard) {
+    return (n != null) && !guard ? slice.call(array, 0, n) : array[0];
+  };
+
+  // Returns everything but the last entry of the array. Especially useful on
+  // the arguments object. Passing **n** will return all the values in
+  // the array, excluding the last N. The **guard** check allows it to work with
+  // `_.map`.
+  _.initial = function(array, n, guard) {
+    return slice.call(array, 0, array.length - ((n == null) || guard ? 1 : n));
+  };
+
+  // Get the last element of an array. Passing **n** will return the last N
+  // values in the array. The **guard** check allows it to work with `_.map`.
+  _.last = function(array, n, guard) {
+    if ((n != null) && !guard) {
+      return slice.call(array, Math.max(array.length - n, 0));
+    } else {
+      return array[array.length - 1];
+    }
+  };
+
+  // Returns everything but the first entry of the array. Aliased as `tail` and `drop`.
+  // Especially useful on the arguments object. Passing an **n** will return
+  // the rest N values in the array. The **guard**
+  // check allows it to work with `_.map`.
+  _.rest = _.tail = _.drop = function(array, n, guard) {
+    return slice.call(array, (n == null) || guard ? 1 : n);
+  };
+
+  // Trim out all falsy values from an array.
+  _.compact = function(array) {
+    return _.filter(array, function(value){ return !!value; });
+  };
+
+  // Internal implementation of a recursive `flatten` function.
+  var flatten = function(input, shallow, output) {
+    each(input, function(value) {
+      if (_.isArray(value)) {
+        shallow ? push.apply(output, value) : flatten(value, shallow, output);
+      } else {
+        output.push(value);
+      }
+    });
+    return output;
+  };
+
+  // Return a completely flattened version of an array.
+  _.flatten = function(array, shallow) {
+    return flatten(array, shallow, []);
+  };
+
+  // Return a version of the array that does not contain the specified value(s).
+  _.without = function(array) {
+    return _.difference(array, slice.call(arguments, 1));
+  };
+
+  // Produce a duplicate-free version of the array. If the array has already
+  // been sorted, you have the option of using a faster algorithm.
+  // Aliased as `unique`.
+  _.uniq = _.unique = function(array, isSorted, iterator, context) {
+    var initial = iterator ? _.map(array, iterator, context) : array;
+    var results = [];
+    var seen = [];
+    each(initial, function(value, index) {
+      if (isSorted ? (!index || seen[seen.length - 1] !== value) : !_.contains(seen, value)) {
+        seen.push(value);
+        results.push(array[index]);
+      }
+    });
+    return results;
+  };
+
+  // Produce an array that contains the union: each distinct element from all of
+  // the passed-in arrays.
+  _.union = function() {
+    return _.uniq(concat.apply(ArrayProto, arguments));
+  };
+
+  // Produce an array that contains every item shared between all the
+  // passed-in arrays.
+  _.intersection = function(array) {
+    var rest = slice.call(arguments, 1);
+    return _.filter(_.uniq(array), function(item) {
+      return _.every(rest, function(other) {
+        return _.indexOf(other, item) >= 0;
+      });
+    });
+  };
+
+  // Take the difference between one array and a number of other arrays.
+  // Only the elements present in just the first array will remain.
+  _.difference = function(array) {
+    var rest = concat.apply(ArrayProto, slice.call(arguments, 1));
+    return _.filter(array, function(value){ return !_.contains(rest, value); });
+  };
+
+  // Zip together multiple lists into a single array -- elements that share
+  // an index go together.
+  _.zip = function() {
+    var args = slice.call(arguments);
+    var length = _.max(_.pluck(args, 'length'));
+    var results = new Array(length);
+    for (var i = 0; i < length; i++) {
+      results[i] = _.pluck(args, "" + i);
+    }
+    return results;
+  };
+
+  // Converts lists into objects. Pass either a single array of `[key, value]`
+  // pairs, or two parallel arrays of the same length -- one of keys, and one of
+  // the corresponding values.
+  _.object = function(list, values) {
+    var result = {};
+    for (var i = 0, l = list.length; i < l; i++) {
+      if (values) {
+        result[list[i]] = values[i];
+      } else {
+        result[list[i][0]] = list[i][1];
+      }
+    }
+    return result;
+  };
+
+  // If the browser doesn't supply us with indexOf (I'm looking at you, **MSIE**),
+  // we need this function. Return the position of the first occurrence of an
+  // item in an array, or -1 if the item is not included in the array.
+  // Delegates to **ECMAScript 5**'s native `indexOf` if available.
+  // If the array is large and already in sort order, pass `true`
+  // for **isSorted** to use binary search.
+  _.indexOf = function(array, item, isSorted) {
+    if (array == null) return -1;
+    var i = 0, l = array.length;
+    if (isSorted) {
+      if (typeof isSorted == 'number') {
+        i = (isSorted < 0 ? Math.max(0, l + isSorted) : isSorted);
+      } else {
+        i = _.sortedIndex(array, item);
+        return array[i] === item ? i : -1;
+      }
+    }
+    if (nativeIndexOf && array.indexOf === nativeIndexOf) return array.indexOf(item, isSorted);
+    for (; i < l; i++) if (array[i] === item) return i;
+    return -1;
+  };
+
+  // Delegates to **ECMAScript 5**'s native `lastIndexOf` if available.
+  _.lastIndexOf = function(array, item, from) {
+    if (array == null) return -1;
+    var hasIndex = from != null;
+    if (nativeLastIndexOf && array.lastIndexOf === nativeLastIndexOf) {
+      return hasIndex ? array.lastIndexOf(item, from) : array.lastIndexOf(item);
+    }
+    var i = (hasIndex ? from : array.length);
+    while (i--) if (array[i] === item) return i;
+    return -1;
+  };
+
+  // Generate an integer Array containing an arithmetic progression. A port of
+  // the native Python `range()` function. See
+  // [the Python documentation](http://docs.python.org/library/functions.html#range).
+  _.range = function(start, stop, step) {
+    if (arguments.length <= 1) {
+      stop = start || 0;
+      start = 0;
+    }
+    step = arguments[2] || 1;
+
+    var len = Math.max(Math.ceil((stop - start) / step), 0);
+    var idx = 0;
+    var range = new Array(len);
+
+    while(idx < len) {
+      range[idx++] = start;
+      start += step;
+    }
+
+    return range;
+  };
+
+  // Function (ahem) Functions
+  // ------------------
+
+  // Reusable constructor function for prototype setting.
+  var ctor = function(){};
+
+  // Create a function bound to a given object (assigning `this`, and arguments,
+  // optionally). Binding with arguments is also known as `curry`.
+  // Delegates to **ECMAScript 5**'s native `Function.bind` if available.
+  // We check for `func.bind` first, to fail fast when `func` is undefined.
+  _.bind = function bind(func, context) {
+    var bound, args;
+    if (func.bind === nativeBind && nativeBind) return nativeBind.apply(func, slice.call(arguments, 1));
+    if (!_.isFunction(func)) throw new TypeError;
+    args = slice.call(arguments, 2);
+    return bound = function() {
+      if (!(this instanceof bound)) return func.apply(context, args.concat(slice.call(arguments)));
+      ctor.prototype = func.prototype;
+      var self = new ctor;
+      var result = func.apply(self, args.concat(slice.call(arguments)));
+      if (Object(result) === result) return result;
+      return self;
+    };
+  };
+
+  // Bind all of an object's methods to that object. Useful for ensuring that
+  // all callbacks defined on an object belong to it.
+  _.bindAll = function(obj) {
+    var funcs = slice.call(arguments, 1);
+    if (funcs.length == 0) funcs = _.functions(obj);
+    each(funcs, function(f) { obj[f] = _.bind(obj[f], obj); });
+    return obj;
+  };
+
+  // Memoize an expensive function by storing its results.
+  _.memoize = function(func, hasher) {
+    var memo = {};
+    hasher || (hasher = _.identity);
+    return function() {
+      var key = hasher.apply(this, arguments);
+      return _.has(memo, key) ? memo[key] : (memo[key] = func.apply(this, arguments));
+    };
+  };
+
+  // Delays a function for the given number of milliseconds, and then calls
+  // it with the arguments supplied.
+  _.delay = function(func, wait) {
+    var args = slice.call(arguments, 2);
+    return setTimeout(function(){ return func.apply(null, args); }, wait);
+  };
+
+  // Defers a function, scheduling it to run after the current call stack has
+  // cleared.
+  _.defer = function(func) {
+    return _.delay.apply(_, [func, 1].concat(slice.call(arguments, 1)));
+  };
+
+  // Returns a function, that, when invoked, will only be triggered at most once
+  // during a given window of time.
+  _.throttle = function(func, wait) {
+    var context, args, timeout, throttling, more, result;
+    var whenDone = _.debounce(function(){ more = throttling = false; }, wait);
+    return function() {
+      context = this; args = arguments;
+      var later = function() {
+        timeout = null;
+        if (more) {
+          result = func.apply(context, args);
+        }
+        whenDone();
+      };
+      if (!timeout) timeout = setTimeout(later, wait);
+      if (throttling) {
+        more = true;
+      } else {
+        throttling = true;
+        result = func.apply(context, args);
+      }
+      whenDone();
+      return result;
+    };
+  };
+
+  // Returns a function, that, as long as it continues to be invoked, will not
+  // be triggered. The function will be called after it stops being called for
+  // N milliseconds. If `immediate` is passed, trigger the function on the
+  // leading edge, instead of the trailing.
+  _.debounce = function(func, wait, immediate) {
+    var timeout, result;
+    return function() {
+      var context = this, args = arguments;
+      var later = function() {
+        timeout = null;
+        if (!immediate) result = func.apply(context, args);
+      };
+      var callNow = immediate && !timeout;
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+      if (callNow) result = func.apply(context, args);
+      return result;
+    };
+  };
+
+  // Returns a function that will be executed at most one time, no matter how
+  // often you call it. Useful for lazy initialization.
+  _.once = function(func) {
+    var ran = false, memo;
+    return function() {
+      if (ran) return memo;
+      ran = true;
+      memo = func.apply(this, arguments);
+      func = null;
+      return memo;
+    };
+  };
+
+  // Returns the first function passed as an argument to the second,
+  // allowing you to adjust arguments, run code before and after, and
+  // conditionally execute the original function.
+  _.wrap = function(func, wrapper) {
+    return function() {
+      var args = [func];
+      push.apply(args, arguments);
+      return wrapper.apply(this, args);
+    };
+  };
+
+  // Returns a function that is the composition of a list of functions, each
+  // consuming the return value of the function that follows.
+  _.compose = function() {
+    var funcs = arguments;
+    return function() {
+      var args = arguments;
+      for (var i = funcs.length - 1; i >= 0; i--) {
+        args = [funcs[i].apply(this, args)];
+      }
+      return args[0];
+    };
+  };
+
+  // Returns a function that will only be executed after being called N times.
+  _.after = function(times, func) {
+    if (times <= 0) return func();
+    return function() {
+      if (--times < 1) {
+        return func.apply(this, arguments);
+      }
+    };
+  };
+
+  // Object Functions
+  // ----------------
+
+  // Retrieve the names of an object's properties.
+  // Delegates to **ECMAScript 5**'s native `Object.keys`
+  _.keys = nativeKeys || function(obj) {
+    if (obj !== Object(obj)) throw new TypeError('Invalid object');
+    var keys = [];
+    for (var key in obj) if (_.has(obj, key)) keys[keys.length] = key;
+    return keys;
+  };
+
+  // Retrieve the values of an object's properties.
+  _.values = function(obj) {
+    var values = [];
+    for (var key in obj) if (_.has(obj, key)) values.push(obj[key]);
+    return values;
+  };
+
+  // Convert an object into a list of `[key, value]` pairs.
+  _.pairs = function(obj) {
+    var pairs = [];
+    for (var key in obj) if (_.has(obj, key)) pairs.push([key, obj[key]]);
+    return pairs;
+  };
+
+  // Invert the keys and values of an object. The values must be serializable.
+  _.invert = function(obj) {
+    var result = {};
+    for (var key in obj) if (_.has(obj, key)) result[obj[key]] = key;
+    return result;
+  };
+
+  // Return a sorted list of the function names available on the object.
+  // Aliased as `methods`
+  _.functions = _.methods = function(obj) {
+    var names = [];
+    for (var key in obj) {
+      if (_.isFunction(obj[key])) names.push(key);
+    }
+    return names.sort();
+  };
+
+  // Extend a given object with all the properties in passed-in object(s).
+  _.extend = function(obj) {
+    each(slice.call(arguments, 1), function(source) {
+      for (var prop in source) {
+        obj[prop] = source[prop];
+      }
+    });
+    return obj;
+  };
+
+  // Return a copy of the object only containing the whitelisted properties.
+  _.pick = function(obj) {
+    var copy = {};
+    var keys = concat.apply(ArrayProto, slice.call(arguments, 1));
+    each(keys, function(key) {
+      if (key in obj) copy[key] = obj[key];
+    });
+    return copy;
+  };
+
+   // Return a copy of the object without the blacklisted properties.
+  _.omit = function(obj) {
+    var copy = {};
+    var keys = concat.apply(ArrayProto, slice.call(arguments, 1));
+    for (var key in obj) {
+      if (!_.contains(keys, key)) copy[key] = obj[key];
+    }
+    return copy;
+  };
+
+  // Fill in a given object with default properties.
+  _.defaults = function(obj) {
+    each(slice.call(arguments, 1), function(source) {
+      for (var prop in source) {
+        if (obj[prop] == null) obj[prop] = source[prop];
+      }
+    });
+    return obj;
+  };
+
+  // Create a (shallow-cloned) duplicate of an object.
+  _.clone = function(obj) {
+    if (!_.isObject(obj)) return obj;
+    return _.isArray(obj) ? obj.slice() : _.extend({}, obj);
+  };
+
+  // Invokes interceptor with the obj, and then returns obj.
+  // The primary purpose of this method is to "tap into" a method chain, in
+  // order to perform operations on intermediate results within the chain.
+  _.tap = function(obj, interceptor) {
+    interceptor(obj);
+    return obj;
+  };
+
+  // Internal recursive comparison function for `isEqual`.
+  var eq = function(a, b, aStack, bStack) {
+    // Identical objects are equal. `0 === -0`, but they aren't identical.
+    // See the Harmony `egal` proposal: http://wiki.ecmascript.org/doku.php?id=harmony:egal.
+    if (a === b) return a !== 0 || 1 / a == 1 / b;
+    // A strict comparison is necessary because `null == undefined`.
+    if (a == null || b == null) return a === b;
+    // Unwrap any wrapped objects.
+    if (a instanceof _) a = a._wrapped;
+    if (b instanceof _) b = b._wrapped;
+    // Compare `[[Class]]` names.
+    var className = toString.call(a);
+    if (className != toString.call(b)) return false;
+    switch (className) {
+      // Strings, numbers, dates, and booleans are compared by value.
+      case '[object String]':
+        // Primitives and their corresponding object wrappers are equivalent; thus, `"5"` is
+        // equivalent to `new String("5")`.
+        return a == String(b);
+      case '[object Number]':
+        // `NaN`s are equivalent, but non-reflexive. An `egal` comparison is performed for
+        // other numeric values.
+        return a != +a ? b != +b : (a == 0 ? 1 / a == 1 / b : a == +b);
+      case '[object Date]':
+      case '[object Boolean]':
+        // Coerce dates and booleans to numeric primitive values. Dates are compared by their
+        // millisecond representations. Note that invalid dates with millisecond representations
+        // of `NaN` are not equivalent.
+        return +a == +b;
+      // RegExps are compared by their source patterns and flags.
+      case '[object RegExp]':
+        return a.source == b.source &&
+               a.global == b.global &&
+               a.multiline == b.multiline &&
+               a.ignoreCase == b.ignoreCase;
+    }
+    if (typeof a != 'object' || typeof b != 'object') return false;
+    // Assume equality for cyclic structures. The algorithm for detecting cyclic
+    // structures is adapted from ES 5.1 section 15.12.3, abstract operation `JO`.
+    var length = aStack.length;
+    while (length--) {
+      // Linear search. Performance is inversely proportional to the number of
+      // unique nested structures.
+      if (aStack[length] == a) return bStack[length] == b;
+    }
+    // Add the first object to the stack of traversed objects.
+    aStack.push(a);
+    bStack.push(b);
+    var size = 0, result = true;
+    // Recursively compare objects and arrays.
+    if (className == '[object Array]') {
+      // Compare array lengths to determine if a deep comparison is necessary.
+      size = a.length;
+      result = size == b.length;
+      if (result) {
+        // Deep compare the contents, ignoring non-numeric properties.
+        while (size--) {
+          if (!(result = eq(a[size], b[size], aStack, bStack))) break;
+        }
+      }
+    } else {
+      // Objects with different constructors are not equivalent, but `Object`s
+      // from different frames are.
+      var aCtor = a.constructor, bCtor = b.constructor;
+      if (aCtor !== bCtor && !(_.isFunction(aCtor) && (aCtor instanceof aCtor) &&
+                               _.isFunction(bCtor) && (bCtor instanceof bCtor))) {
+        return false;
+      }
+      // Deep compare objects.
+      for (var key in a) {
+        if (_.has(a, key)) {
+          // Count the expected number of properties.
+          size++;
+          // Deep compare each member.
+          if (!(result = _.has(b, key) && eq(a[key], b[key], aStack, bStack))) break;
+        }
+      }
+      // Ensure that both objects contain the same number of properties.
+      if (result) {
+        for (key in b) {
+          if (_.has(b, key) && !(size--)) break;
+        }
+        result = !size;
+      }
+    }
+    // Remove the first object from the stack of traversed objects.
+    aStack.pop();
+    bStack.pop();
+    return result;
+  };
+
+  // Perform a deep comparison to check if two objects are equal.
+  _.isEqual = function(a, b) {
+    return eq(a, b, [], []);
+  };
+
+  // Is a given array, string, or object empty?
+  // An "empty" object has no enumerable own-properties.
+  _.isEmpty = function(obj) {
+    if (obj == null) return true;
+    if (_.isArray(obj) || _.isString(obj)) return obj.length === 0;
+    for (var key in obj) if (_.has(obj, key)) return false;
+    return true;
+  };
+
+  // Is a given value a DOM element?
+  _.isElement = function(obj) {
+    return !!(obj && obj.nodeType === 1);
+  };
+
+  // Is a given value an array?
+  // Delegates to ECMA5's native Array.isArray
+  _.isArray = nativeIsArray || function(obj) {
+    return toString.call(obj) == '[object Array]';
+  };
+
+  // Is a given variable an object?
+  _.isObject = function(obj) {
+    return obj === Object(obj);
+  };
+
+  // Add some isType methods: isArguments, isFunction, isString, isNumber, isDate, isRegExp.
+  each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp'], function(name) {
+    _['is' + name] = function(obj) {
+      return toString.call(obj) == '[object ' + name + ']';
+    };
+  });
+
+  // Define a fallback version of the method in browsers (ahem, IE), where
+  // there isn't any inspectable "Arguments" type.
+  if (!_.isArguments(arguments)) {
+    _.isArguments = function(obj) {
+      return !!(obj && _.has(obj, 'callee'));
+    };
+  }
+
+  // Optimize `isFunction` if appropriate.
+  if (typeof (/./) !== 'function') {
+    _.isFunction = function(obj) {
+      return typeof obj === 'function';
+    };
+  }
+
+  // Is a given object a finite number?
+  _.isFinite = function(obj) {
+    return _.isNumber(obj) && isFinite(obj);
+  };
+
+  // Is the given value `NaN`? (NaN is the only number which does not equal itself).
+  _.isNaN = function(obj) {
+    return _.isNumber(obj) && obj != +obj;
+  };
+
+  // Is a given value a boolean?
+  _.isBoolean = function(obj) {
+    return obj === true || obj === false || toString.call(obj) == '[object Boolean]';
+  };
+
+  // Is a given value equal to null?
+  _.isNull = function(obj) {
+    return obj === null;
+  };
+
+  // Is a given variable undefined?
+  _.isUndefined = function(obj) {
+    return obj === void 0;
+  };
+
+  // Shortcut function for checking if an object has a given property directly
+  // on itself (in other words, not on a prototype).
+  _.has = function(obj, key) {
+    return hasOwnProperty.call(obj, key);
+  };
+
+  // Utility Functions
+  // -----------------
+
+  // Run Underscore.js in *noConflict* mode, returning the `_` variable to its
+  // previous owner. Returns a reference to the Underscore object.
+  _.noConflict = function() {
+    root._ = previousUnderscore;
+    return this;
+  };
+
+  // Keep the identity function around for default iterators.
+  _.identity = function(value) {
+    return value;
+  };
+
+  // Run a function **n** times.
+  _.times = function(n, iterator, context) {
+    for (var i = 0; i < n; i++) iterator.call(context, i);
+  };
+
+  // Return a random integer between min and max (inclusive).
+  _.random = function(min, max) {
+    if (max == null) {
+      max = min;
+      min = 0;
+    }
+    return min + (0 | Math.random() * (max - min + 1));
+  };
+
+  // List of HTML entities for escaping.
+  var entityMap = {
+    escape: {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+      '/': '&#x2F;'
+    }
+  };
+  entityMap.unescape = _.invert(entityMap.escape);
+
+  // Regexes containing the keys and values listed immediately above.
+  var entityRegexes = {
+    escape:   new RegExp('[' + _.keys(entityMap.escape).join('') + ']', 'g'),
+    unescape: new RegExp('(' + _.keys(entityMap.unescape).join('|') + ')', 'g')
+  };
+
+  // Functions for escaping and unescaping strings to/from HTML interpolation.
+  _.each(['escape', 'unescape'], function(method) {
+    _[method] = function(string) {
+      if (string == null) return '';
+      return ('' + string).replace(entityRegexes[method], function(match) {
+        return entityMap[method][match];
+      });
+    };
+  });
+
+  // If the value of the named property is a function then invoke it;
+  // otherwise, return it.
+  _.result = function(object, property) {
+    if (object == null) return null;
+    var value = object[property];
+    return _.isFunction(value) ? value.call(object) : value;
+  };
+
+  // Add your own custom functions to the Underscore object.
+  _.mixin = function(obj) {
+    each(_.functions(obj), function(name){
+      var func = _[name] = obj[name];
+      _.prototype[name] = function() {
+        var args = [this._wrapped];
+        push.apply(args, arguments);
+        return result.call(this, func.apply(_, args));
+      };
+    });
+  };
+
+  // Generate a unique integer id (unique within the entire client session).
+  // Useful for temporary DOM ids.
+  var idCounter = 0;
+  _.uniqueId = function(prefix) {
+    var id = idCounter++;
+    return prefix ? prefix + id : id;
+  };
+
+  // By default, Underscore uses ERB-style template delimiters, change the
+  // following template settings to use alternative delimiters.
+  _.templateSettings = {
+    evaluate    : /<%([\s\S]+?)%>/g,
+    interpolate : /<%=([\s\S]+?)%>/g,
+    escape      : /<%-([\s\S]+?)%>/g
+  };
+
+  // When customizing `templateSettings`, if you don't want to define an
+  // interpolation, evaluation or escaping regex, we need one that is
+  // guaranteed not to match.
+  var noMatch = /(.)^/;
+
+  // Certain characters need to be escaped so that they can be put into a
+  // string literal.
+  var escapes = {
+    "'":      "'",
+    '\\':     '\\',
+    '\r':     'r',
+    '\n':     'n',
+    '\t':     't',
+    '\u2028': 'u2028',
+    '\u2029': 'u2029'
+  };
+
+  var escaper = /\\|'|\r|\n|\t|\u2028|\u2029/g;
+
+  // JavaScript micro-templating, similar to John Resig's implementation.
+  // Underscore templating handles arbitrary delimiters, preserves whitespace,
+  // and correctly escapes quotes within interpolated code.
+  _.template = function(text, data, settings) {
+    settings = _.defaults({}, settings, _.templateSettings);
+
+    // Combine delimiters into one regular expression via alternation.
+    var matcher = new RegExp([
+      (settings.escape || noMatch).source,
+      (settings.interpolate || noMatch).source,
+      (settings.evaluate || noMatch).source
+    ].join('|') + '|$', 'g');
+
+    // Compile the template source, escaping string literals appropriately.
+    var index = 0;
+    var source = "__p+='";
+    text.replace(matcher, function(match, escape, interpolate, evaluate, offset) {
+      source += text.slice(index, offset)
+        .replace(escaper, function(match) { return '\\' + escapes[match]; });
+      source +=
+        escape ? "'+\n((__t=(" + escape + "))==null?'':_.escape(__t))+\n'" :
+        interpolate ? "'+\n((__t=(" + interpolate + "))==null?'':__t)+\n'" :
+        evaluate ? "';\n" + evaluate + "\n__p+='" : '';
+      index = offset + match.length;
+    });
+    source += "';\n";
+
+    // If a variable is not specified, place data values in local scope.
+    if (!settings.variable) source = 'with(obj||{}){\n' + source + '}\n';
+
+    source = "var __t,__p='',__j=Array.prototype.join," +
+      "print=function(){__p+=__j.call(arguments,'');};\n" +
+      source + "return __p;\n";
+
+    try {
+      var render = new Function(settings.variable || 'obj', '_', source);
+    } catch (e) {
+      e.source = source;
+      throw e;
+    }
+
+    if (data) return render(data, _);
+    var template = function(data) {
+      return render.call(this, data, _);
+    };
+
+    // Provide the compiled function source as a convenience for precompilation.
+    template.source = 'function(' + (settings.variable || 'obj') + '){\n' + source + '}';
+
+    return template;
+  };
+
+  // Add a "chain" function, which will delegate to the wrapper.
+  _.chain = function(obj) {
+    return _(obj).chain();
+  };
+
+  // OOP
+  // ---------------
+  // If Underscore is called as a function, it returns a wrapped object that
+  // can be used OO-style. This wrapper holds altered versions of all the
+  // underscore functions. Wrapped objects may be chained.
+
+  // Helper function to continue chaining intermediate results.
+  var result = function(obj) {
+    return this._chain ? _(obj).chain() : obj;
+  };
+
+  // Add all of the Underscore functions to the wrapper object.
+  _.mixin(_);
+
+  // Add all mutator Array functions to the wrapper.
+  each(['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'], function(name) {
+    var method = ArrayProto[name];
+    _.prototype[name] = function() {
+      var obj = this._wrapped;
+      method.apply(obj, arguments);
+      if ((name == 'shift' || name == 'splice') && obj.length === 0) delete obj[0];
+      return result.call(this, obj);
+    };
+  });
+
+  // Add all accessor Array functions to the wrapper.
+  each(['concat', 'join', 'slice'], function(name) {
+    var method = ArrayProto[name];
+    _.prototype[name] = function() {
+      return result.call(this, method.apply(this._wrapped, arguments));
+    };
+  });
+
+  _.extend(_.prototype, {
+
+    // Start chaining a wrapped Underscore object.
+    chain: function() {
+      this._chain = true;
+      return this;
+    },
+
+    // Extracts the result from a wrapped and chained object.
+    value: function() {
+      return this._wrapped;
+    }
+
+  });
+
+}).call(this);
+
+define("underscore", function(){});
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/util/ajax',['require','app/util/common','app/util/Ok','jquery.cookie','underscore'],function(require) {
+    var Ok, util;
+    util = require('app/util/common');
+    Ok = require('app/util/Ok');
+    require('jquery.cookie');
+    require('underscore');
+    return {
+      get: function(config) {
+        config.type = 'GET';
+        return this.ajax(config);
+      },
+      post: function(config) {
+        config.type = 'POST';
+        return this.ajax(config);
+      },
+      ajax: function(config) {
+        var key, loginCookie, newdata, value, _ref;
+        if (!config.type) {
+          config.type = 'GET';
+        }
+        if (config.type === 'POST') {
+          loginCookie = $.cookie.get('login');
+          if (loginCookie) {
+            config.headers = {
+              'X-Voost-Login': loginCookie
+            };
+          }
+          if (config.data) {
+            newdata = {};
+            _ref = config.data;
+            for (key in _ref) {
+              value = _ref[key];
+              if (value !== null) {
+                newdata[key] = value;
+              }
+            }
+            config.data = newdata;
+          }
+        }
+        if (!config.polling && !config.error) {
+          config.error = function(data) {
+            var ok;
+            if (_.isFunction(config.completed)) {
+              config.completed();
+            }
+            if (config.errorCallback) {
+              return config.errorCallback(data);
+            } else {
+              if (!data.message) {
+                if (console && console.log) {
+                  console.log(util.toJSON(data));
+                }
+                if (data.readyState === 0 && data.responseText === '' && data.status === 0 && data.statusText === 'error') {
+                  return;
+                }
+                data.message = "Please refresh your page and try again. If the problem persists, contact <a href='mailto:support@voo.st'>support@voo.st</a>.<br /><br /><p>Helpful nerd info to share with us:</p> <p><em>status: " + data.status + ", message: " + data.statusText + "</em></p>";
+              }
+              if (!data.type) {
+                data.type = 'Oh no, a flat tire!';
+              }
+              return ok = new Ok({
+                autoOpen: true,
+                title: data.type,
+                body: data.message
+              });
+            }
+          };
+        }
+        if (config.success) {
+          config.successOrig = config.success;
+          config.success = function(data) {
+            if (_.isFunction(config.completed)) {
+              config.completed();
+            }
+            if (data.yikes) {
+              return config.error(data.yikes);
+            } else {
+              return config.successOrig(data);
+            }
+          };
+        }
+        return $.ajax(config);
+      }
+    };
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/util/keys',[], function() {
+    return {
+      tab: 9,
+      enter: 13,
+      escape: 27,
+      up: 38,
+      down: 40
+    };
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/util/sanity',[], function() {
+    if (!(window.console != null)) {
+      window.console = {};
+    }
+    if (!(window.console.log != null)) {
+      window.console.log = function() {};
+    }
+    if (!(Array.prototype.indexOf != null)) {
+      Array.prototype.indexOf = function(obj, start) {
+        var i, _i, _ref, _ref1;
+        for (i = _i = _ref = start || 0, _ref1 = this.length; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; i = _ref <= _ref1 ? ++_i : --_i) {
+          if (this[i] === obj) {
+            return i;
+          }
+        }
+        return -1;
+      };
+    }
+    String.prototype.startsWith = function(str) {
+      return this.slice(0, str.length) === str;
+    };
+    String.prototype.endsWith = function(str) {
+      return this.slice(-str.length) === str;
+    };
+    String.prototype.contains = function(it) {
+      return this.indexOf(it) !== -1;
+    };
+    return Array.prototype.remove = function(from, to) {
+      var rest;
+      rest = this.slice((to || from) + 1 || this.length);
+      this.length = from < 0 ? this.length + from : from;
+      return this.push.apply(this, rest);
+    };
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/util/text',[], function() {
+    return {
+      trimToNull: function(val) {
+        var result, trimmed;
+        result = null;
+        if (val !== null) {
+          trimmed = $.trim(val);
+          if (trimmed.length > 0) {
+            result = trimmed;
+          }
+        }
+        return result;
+      },
+      replaceAll: function(txt, replace, with_this) {
+        return txt.replace(new RegExp(replace, 'g'), with_this);
+      },
+      chopdown: function(str, len) {
+        var addEllipsis;
+        if (len == null) {
+          len = 300;
+        }
+        if (!str) {
+          return;
+        }
+        addEllipsis = str.length > len;
+        if (addEllipsis) {
+          str = str.substr(0, len);
+          str = jQuery.trim(str);
+          str += "...";
+        }
+        return str;
+      }
+    };
+  });
+
+}).call(this);
+
+/* =============================================================
+ * bootstrap-typeahead.js v2.2.1
+ * http://twitter.github.com/bootstrap/javascript.html#typeahead
+ * =============================================================
+ * Copyright 2012 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ============================================================ */
+
+
+!function($){
+
+   // jshint ;_;
+
+
+ /* TYPEAHEAD PUBLIC CLASS DEFINITION
+  * ================================= */
+
+  var Typeahead = function (element, options) {
+    this.$element = $(element)
+    this.options = $.extend({}, $.fn.typeahead.defaults, options)
+    this.matcher = this.options.matcher || this.matcher
+    this.sorter = this.options.sorter || this.sorter
+    this.highlighter = this.options.highlighter || this.highlighter
+    this.updater = this.options.updater || this.updater
+    this.render = this.options.render || this.render
+    this.show = this.options.show || this.show
+    this.next = this.options.next || this.next
+    this.prev = this.options.prev || this.prev
+    this.select = this.options.select || this.select
+    this.$menu = $(this.options.menu).appendTo('body')
+    this.source = this.options.source
+    this.shown = false
+    this.listen()
+  }
+
+  Typeahead.prototype = {
+
+    constructor: Typeahead
+
+  , select: function () {
+      var val = this.$menu.find('.active').attr('data-value')
+      this.$element
+        .val(this.updater(val))
+        .change()
+      return this.hide()
+    }
+
+  , updater: function (item) {
+      return item
+    }
+
+  , show: function () {
+      var pos = $.extend({}, this.$element.offset(), {
+        height: this.$element[0].offsetHeight
+      })
+
+      this.$menu.css({
+        top: pos.top + pos.height
+      , left: pos.left
+      })
+
+      this.$menu.show()
+      this.shown = true
+      return this
+    }
+
+  , hide: function () {
+      this.$menu.hide()
+      this.shown = false
+      return this
+    }
+
+  , lookup: function (event) {
+      var items
+
+      this.query = this.$element.val()
+
+      if (!this.query || this.query.length < this.options.minLength) {
+        return this.shown ? this.hide() : this
+      }
+
+      items = $.isFunction(this.source) ? this.source(this.query, $.proxy(this.process, this)) : this.source
+
+      return items ? this.process(items) : this
+    }
+
+  , process: function (items) {
+      var that = this
+
+      items = $.grep(items, function (item) {
+        return that.matcher(item)
+      })
+
+      items = this.sorter(items)
+
+      if (!items.length) {
+        return this.shown ? this.hide() : this
+      }
+
+      return this.render(items.slice(0, this.options.items)).show()
+    }
+
+  , matcher: function (item) {
+      return ~item.toLowerCase().indexOf(this.query.toLowerCase())
+    }
+
+  , sorter: function (items) {
+      var beginswith = []
+        , caseSensitive = []
+        , caseInsensitive = []
+        , item
+
+      while (item = items.shift()) {
+        if (!item.toLowerCase().indexOf(this.query.toLowerCase())) beginswith.push(item)
+        else if (~item.indexOf(this.query)) caseSensitive.push(item)
+        else caseInsensitive.push(item)
+      }
+
+      return beginswith.concat(caseSensitive, caseInsensitive)
+    }
+
+  , highlighter: function (item) {
+      var query = this.query.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, '\\$&')
+      return item.replace(new RegExp('(' + query + ')', 'ig'), function ($1, match) {
+        return '<strong>' + match + '</strong>'
+      })
+    }
+
+  , render: function (items) {
+      var that = this
+
+      items = $(items).map(function (i, item) {
+        i = $(that.options.item).attr('data-value', item)
+        i.find('a').html(that.highlighter(item))
+        return i[0]
+      })
+
+      items.first().addClass('active')
+      this.$menu.html(items)
+      return this
+    }
+
+  , next: function (event) {
+      var active = this.$menu.find('.active').removeClass('active')
+        , next = active.next()
+
+      if (!next.length) {
+        next = $(this.$menu.find('li')[0])
+      }
+
+      next.addClass('active')
+    }
+
+  , prev: function (event) {
+      var active = this.$menu.find('.active').removeClass('active')
+        , prev = active.prev()
+
+      if (!prev.length) {
+        prev = this.$menu.find('li').last()
+      }
+
+      prev.addClass('active')
+    }
+
+  , listen: function () {
+      this.$element
+        .on('blur',     $.proxy(this.blur, this))
+        .on('keypress', $.proxy(this.keypress, this))
+        .on('keyup',    $.proxy(this.keyup, this))
+
+      if (this.eventSupported('keydown')) {
+        this.$element.on('keydown', $.proxy(this.keydown, this))
+      }
+
+      this.$menu
+        .on('click', $.proxy(this.click, this))
+        .on('mouseenter', 'li', $.proxy(this.mouseenter, this))
+    }
+
+  , eventSupported: function(eventName) {
+      var isSupported = eventName in this.$element
+      if (!isSupported) {
+        this.$element.setAttribute(eventName, 'return;')
+        isSupported = typeof this.$element[eventName] === 'function'
+      }
+      return isSupported
+    }
+
+  , move: function (e) {
+      if (!this.shown) return
+
+      switch(e.keyCode) {
+        case 9: // tab
+        case 13: // enter
+        case 27: // escape
+          e.preventDefault()
+          break
+
+        case 38: // up arrow
+          e.preventDefault()
+          this.prev()
+          break
+
+        case 40: // down arrow
+          e.preventDefault()
+          this.next()
+          break
+      }
+
+      e.stopPropagation()
+    }
+
+  , keydown: function (e) {
+      this.suppressKeyPressRepeat = !~$.inArray(e.keyCode, [40,38,9,13,27])
+      this.move(e)
+    }
+
+  , keypress: function (e) {
+      if (this.suppressKeyPressRepeat) return
+      this.move(e)
+    }
+
+  , keyup: function (e) {
+      switch(e.keyCode) {
+        case 40: // down arrow
+        case 38: // up arrow
+        case 16: // shift
+        case 17: // ctrl
+        case 18: // alt
+          break
+
+        case 9: // tab
+        case 13: // enter
+          if (!this.shown) return
+          this.select()
+          break
+
+        case 27: // escape
+          if (!this.shown) return
+          this.hide()
+          break
+
+        default:
+          this.lookup()
+      }
+
+      e.stopPropagation()
+      e.preventDefault()
+  }
+
+  , blur: function (e) {
+      var that = this
+      setTimeout(function () { that.hide() }, 150)
+    }
+
+  , click: function (e) {
+      e.stopPropagation()
+      e.preventDefault()
+      this.select()
+    }
+
+  , mouseenter: function (e) {
+      this.$menu.find('.active').removeClass('active')
+      $(e.currentTarget).addClass('active')
+    }
+
+  }
+
+
+  /* TYPEAHEAD PLUGIN DEFINITION
+   * =========================== */
+
+  $.fn.typeahead = function (option) {
+    return this.each(function () {
+      var $this = $(this)
+        , data = $this.data('typeahead')
+        , options = typeof option == 'object' && option
+      if (!data) $this.data('typeahead', (data = new Typeahead(this, options)))
+      if (typeof option == 'string') data[option]()
+    })
+  }
+
+  $.fn.typeahead.defaults = {
+    source: []
+  , items: 8
+  , menu: '<ul class="typeahead dropdown-menu"></ul>'
+  , item: '<li><a href="#"></a></li>'
+  , minLength: 1
+  }
+
+  $.fn.typeahead.Constructor = Typeahead
+
+
+ /*   TYPEAHEAD DATA-API
+  * ================== */
+
+  $(document).on('focus.typeahead.data-api', '[data-provide="typeahead"]', function (e) {
+    var $this = $(this)
+    if ($this.data('typeahead')) return
+    e.preventDefault()
+    $this.typeahead($this.data())
+  })
+
+}(window.jQuery);
+
+define("bootstrap/bootstrap-typeahead", function(){});
+
+/*! http://mths.be/placeholder v2.0.7 by @mathias */
+;(function(window, document, $) {
+
+	var isInputSupported = 'placeholder' in document.createElement('input'),
+	    isTextareaSupported = 'placeholder' in document.createElement('textarea'),
+	    prototype = $.fn,
+	    valHooks = $.valHooks,
+	    hooks,
+	    placeholder;
+
+	if (isInputSupported && isTextareaSupported) {
+
+		placeholder = prototype.placeholder = function() {
+			return this;
+		};
+
+		placeholder.input = placeholder.textarea = true;
+
+	} else {
+
+		placeholder = prototype.placeholder = function() {
+			var $this = this;
+			$this
+				.filter((isInputSupported ? 'textarea' : ':input') + '[placeholder]')
+				.not('.placeholder')
+				.bind({
+					'focus.placeholder': clearPlaceholder,
+					'blur.placeholder': setPlaceholder
+				})
+				.data('placeholder-enabled', true)
+				.trigger('blur.placeholder');
+			return $this;
+		};
+
+		placeholder.input = isInputSupported;
+		placeholder.textarea = isTextareaSupported;
+
+		hooks = {
+			'get': function(element) {
+				var $element = $(element);
+				return $element.data('placeholder-enabled') && $element.hasClass('placeholder') ? '' : element.value;
+			},
+			'set': function(element, value) {
+				var $element = $(element);
+				if (!$element.data('placeholder-enabled')) {
+					return element.value = value;
+				}
+				if (value == '') {
+					element.value = value;
+					// Issue #56: Setting the placeholder causes problems if the element continues to have focus.
+					if (element != document.activeElement) {
+						// We can't use `triggerHandler` here because of dummy text/password inputs :(
+						setPlaceholder.call(element);
+					}
+				} else if ($element.hasClass('placeholder')) {
+					clearPlaceholder.call(element, true, value) || (element.value = value);
+				} else {
+					element.value = value;
+				}
+				// `set` can not return `undefined`; see http://jsapi.info/jquery/1.7.1/val#L2363
+				return $element;
+			}
+		};
+
+		isInputSupported || (valHooks.input = hooks);
+		isTextareaSupported || (valHooks.textarea = hooks);
+
+		$(function() {
+			// Look for forms
+			$(document).delegate('form', 'submit.placeholder', function() {
+				// Clear the placeholder values so they don't get submitted
+				var $inputs = $('.placeholder', this).each(clearPlaceholder);
+				setTimeout(function() {
+					$inputs.each(setPlaceholder);
+				}, 10);
+			});
+		});
+
+		// Clear placeholder values upon page reload
+		$(window).bind('beforeunload.placeholder', function() {
+			$('.placeholder').each(function() {
+				this.value = '';
+			});
+		});
+
+	}
+
+	function args(elem) {
+		// Return an object of element attributes
+		var newAttrs = {},
+		    rinlinejQuery = /^jQuery\d+$/;
+		$.each(elem.attributes, function(i, attr) {
+			if (attr.specified && !rinlinejQuery.test(attr.name)) {
+				newAttrs[attr.name] = attr.value;
+			}
+		});
+		return newAttrs;
+	}
+
+	function clearPlaceholder(event, value) {
+		var input = this,
+		    $input = $(input);
+		if (input.value == $input.attr('placeholder') && $input.hasClass('placeholder')) {
+			if ($input.data('placeholder-password')) {
+				$input = $input.hide().next().show().attr('id', $input.removeAttr('id').data('placeholder-id'));
+				// If `clearPlaceholder` was called from `$.valHooks.input.set`
+				if (event === true) {
+					return $input[0].value = value;
+				}
+				$input.focus();
+			} else {
+				input.value = '';
+				$input.removeClass('placeholder');
+				input == document.activeElement && input.select();
+			}
+		}
+	}
+
+	function setPlaceholder() {
+		var $replacement,
+		    input = this,
+		    $input = $(input),
+		    $origInput = $input,
+		    id = this.id;
+		if (input.value == '') {
+			if (input.type == 'password') {
+				if (!$input.data('placeholder-textinput')) {
+					try {
+						$replacement = $input.clone().attr({ 'type': 'text' });
+					} catch(e) {
+						$replacement = $('<input>').attr($.extend(args(this), { 'type': 'text' }));
+					}
+					$replacement
+						.removeAttr('name')
+						.data({
+							'placeholder-password': true,
+							'placeholder-id': id
+						})
+						.bind('focus.placeholder', clearPlaceholder);
+					$input
+						.data({
+							'placeholder-textinput': $replacement,
+							'placeholder-id': id
+						})
+						.before($replacement);
+				}
+				$input = $input.removeAttr('id').hide().prev().attr('id', id).show();
+				// Note: `$input[0] != input` now!
+			}
+			$input.addClass('placeholder');
+			$input[0].value = $input.attr('placeholder');
+		} else {
+			$input.removeClass('placeholder');
+		}
+	}
+
+}(this, document, jQuery));
+define("jquery.placeholder", function(){});
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+  define('app/search',['require','app/util/text','app/util/ajax','jquery','underscore','bootstrap/bootstrap-typeahead','jquery.placeholder'],function(require) {
+    var SearchBar, ajax, text;
+    text = require('app/util/text');
+    ajax = require('app/util/ajax');
+    require('jquery');
+    require('underscore');
+    require('bootstrap/bootstrap-typeahead');
+    require('jquery.placeholder');
+    SearchBar = (function() {
+
+      function SearchBar() {
+        this._search = __bind(this._search, this);
+
+        var searchTop,
+          _this = this;
+        searchTop = $('#searchTop');
+        this.searchBar = $('input', searchTop);
+        this.searchBar.placeholder();
+        this.searchButton = $('button', searchTop);
+        this.searchButtonUrl = this.searchButton.css('background-image');
+        this.searchBar.typeahead({
+          source: function(q, process) {
+            return _this._search(q, process);
+          },
+          matcher: function(item) {
+            return item;
+          },
+          sorter: function(items) {
+            var eb, es;
+            es = _.sortBy(items[0].data.events, function(e) {
+              return e.dayStart;
+            });
+            eb = _.sortBy(es, function(e) {
+              return e.name;
+            });
+            items[0].data.events = eb;
+            return items;
+          },
+          show: function() {
+            var pos;
+            pos = $.extend({}, this.$element.offset(), {
+              height: this.$element[0].offsetHeight
+            });
+            this.$menu.css({
+              top: pos.top + pos.height,
+              left: pos.left
+            });
+            this.$menu.show();
+            this.shown = true;
+            return this;
+          },
+          render: function(items) {
+            var c, clubs, data, e, events, i, res, that, _i, _j, _len, _len1;
+            that = this;
+            data = items[0].data;
+            events = data.events;
+            clubs = data.clubs;
+            res = [];
+            if (events.length) {
+              i = $('<li></li>');
+              i.html("Events").addClass('header events');
+              res.push(i[0]);
+              for (_i = 0, _len = events.length; _i < _len; _i++) {
+                e = events[_i];
+                i = $(that.options.item).data('value', e);
+                i.find('a').html("<span class='name'>" + (this.highlighter(text.chopdown(e.name, 80))) + "</span><span class='dates'>" + e.dates + "</span>");
+                res.push(i[0]);
+              }
+            }
+            if (clubs.length) {
+              i = $('<li></li>');
+              i.html("Clubs").addClass('header clubs');
+              if (events.length === 0) {
+                i.addClass('clubsTop');
+              }
+              res.push(i[0]);
+              for (_j = 0, _len1 = clubs.length; _j < _len1; _j++) {
+                c = clubs[_j];
+                i = $(that.options.item).data('value', c);
+                i.find('a').html(this.highlighter(text.chopdown(c.name, 80)));
+                res.push(i[0]);
+              }
+            }
+            if (res.length) {
+              $(res[1]).addClass('active');
+            } else {
+              res = '<li class="noresults"><span class="label label-warning">Sorry, no results. Try again?</span></li>';
+            }
+            this.$menu.addClass('searchTypeahead').html(res);
+            return this;
+          },
+          next: function(event) {
+            var active, next;
+            active = this.$menu.find('.active').removeClass('active');
+            next = active.next();
+            if (!next.find('a').length) {
+              next = next.next();
+            }
+            if (!next.length) {
+              next = $(this.$menu.find('li')[1]);
+            }
+            return next.addClass('active');
+          },
+          prev: function(event) {
+            var active, prev;
+            active = this.$menu.find('.active').removeClass('active');
+            prev = active.prev();
+            if (!prev.find('a').length) {
+              prev = prev.prev();
+            }
+            if (!prev.length) {
+              prev = this.$menu.find('li').last();
+            }
+            return prev.addClass('active');
+          },
+          select: function() {
+            var active, val;
+            active = this.$menu.find('.active');
+            if (active.length) {
+              val = active.data('value');
+              this.$element.data('value', val).change();
+              return this.hide();
+            }
+          }
+        });
+        this.searchBar.on('change', function(e) {
+          var v;
+          v = $(e.currentTarget).data('value');
+          if (v) {
+            return window.location.href = v.link;
+          }
+        });
+      }
+
+      SearchBar.prototype._search = function(q, process) {
+        var _this = this;
+        this.searchButton.css('background-image', 'url("/img/ajax-loader.gif")').css('margin-top', '5px');
+        ajax.post({
+          url: '/search',
+          data: {
+            q: q
+          },
+          success: function(data) {
+            _this.searchButton.css('background-image', _this.searchButtonUrl).css('margin-top', 0);
+            if (data) {
+              return process([
+                {
+                  query: q,
+                  data: data
+                }
+              ]);
+            }
+          },
+          errorCallback: function() {
+            return _this.searchButton.css('background-image', _this.searchButtonUrl).css('margin-top', 0);
+          }
+        });
+        return null;
+      };
+
+      return SearchBar;
+
+    })();
+    return $(function() {
+      return new SearchBar();
+    });
+  });
+
+}).call(this);
+
+// Gets value from a jsonified global in _master.html
+
+define('pageStatus',[], function() {
+	return pageStatus;
+});
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+  define('app/HasFields',[], function() {
+    var HasFields;
+    return HasFields = (function() {
+
+      function HasFields() {
+        this.addFields = __bind(this.addFields, this);
+        this.d = {};
+      }
+
+      HasFields.prototype.addFields = function(vars, context) {
+        var v, varName, _i, _len;
+        for (_i = 0, _len = vars.length; _i < _len; _i++) {
+          v = vars[_i];
+          varName = v.replace(/\s/g, '_').replace(/-/g, '_');
+          if (varName[0] === '#' || varName[0] === '.') {
+            varName = varName.substring(1, varName.length);
+          }
+          this.d[varName] = $(v, context);
+        }
+        return this.d;
+      };
+
+      return HasFields;
+
+    })();
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/util/names',[], function() {
+    return {
+      makeLastName: function(name) {
+        var lastIndexOf, len;
+        if (!name) {
+          return '';
+        }
+        lastIndexOf = name.lastIndexOf(' ');
+        len = name.length;
+        if (lastIndexOf && len) {
+          return name.substr(lastIndexOf + 1, len);
+        } else {
+          return name;
+        }
+      },
+      makeFirstName: function(name) {
+        var firstIndexOf, len;
+        if (!name) {
+          return '';
+        }
+        firstIndexOf = name.indexOf(' ');
+        len = name.length;
+        if (firstIndexOf && firstIndexOf < len) {
+          return name.substr(0, firstIndexOf);
+        } else {
+          return name;
+        }
+      }
+    };
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/util/metrics',['require','app/util/sanity','pageStatus'],function(require) {
+    var methods, pageStatus, sanity;
+    sanity = require('app/util/sanity');
+    pageStatus = require('pageStatus');
+    methods = {
+      setup: function(key, name) {
+        if (!(typeof mixpanel !== "undefined" && mixpanel !== null)) {
+
+				(function(c,a){window.mixpanel=a;var b,d,h,e;b=c.createElement("script");
+				b.type="text/javascript";b.async=!0;b.src=("https:"===c.location.protocol?"https:":"http:")+
+				'//cdn.mxpnl.com/libs/mixpanel-2.1.min.js';d=c.getElementsByTagName("script")[0];
+				d.parentNode.insertBefore(b,d);a._i=[];a.init=function(b,c,f){function d(a,b){
+				var c=b.split(".");2==c.length&&(a=a[c[0]],b=c[1]);a[b]=function(){a.push([b].concat(
+				Array.prototype.slice.call(arguments,0)))}}var g=a;"undefined"!==typeof f?g=a[f]=[]:
+				f="mixpanel";g.people=g.people||[];h=['disable','track','track_pageview','track_links',
+				'track_forms','register','register_once','unregister','identify','name_tag',
+				'set_config','people.identify','people.set','people.increment'];for(e=0;e<h.length;e++)d(g,h[e]);
+				a._i.push([b,c,f])};a.__SV=1.1;})(document,window.mixpanel||[]);
+  				;
+
+          mixpanel.init(pageStatus.mixPanelToken);
+          mixpanel.identify(key);
+          return mixpanel.name_tag(name);
+        }
+      },
+      track: function(event, data, callback) {
+        var complete, wrapper;
+        if (typeof mixpanel !== "undefined" && mixpanel !== null) {
+          if (callback) {
+            complete = false;
+            wrapper = function() {
+              if (!complete) {
+                callback();
+              }
+              return complete = true;
+            };
+            mixpanel.track(event, data, wrapper);
+            return setTimeout(wrapper, 1500);
+          } else {
+            return mixpanel.track(event, data);
+          }
+        } else if (callback) {
+          return callback();
+        }
+      },
+      trackPerson: function(data, callback) {
+        var complete, wrapper;
+        if (typeof mixpanel !== "undefined" && mixpanel !== null) {
+          if (callback) {
+            complete = false;
+            wrapper = function() {
+              if (!complete) {
+                callback();
+              }
+              return complete = true;
+            };
+            mixpanel.people.set(data, callback);
+            return setTimeout(wrapper, 1500);
+          } else {
+            return mixpanel.people.set(data);
+          }
+        } else if (callback) {
+          return callback();
+        }
+      }
+    };
+    if (pageStatus.meKey) {
+      if (!pageStatus.meName) {
+        pageStatus.meName = 'Unknown Name';
+      }
+      methods.setup(pageStatus.meKey, pageStatus.meName);
+    }
+    return methods;
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/util/scripts',['require'],function(require) {
+    return {
+      inject: function(src, async) {
+        var s, t;
+        if (async == null) {
+          async = true;
+        }
+        s = document.createElement('script');
+        s.type = 'text/javascript';
+        s.async = async;
+        s.src = src;
+        t = document.getElementsByTagName('script')[0];
+        return t.parentNode.insertBefore(s, t);
+      }
+    };
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/fb',['require','pageStatus','app/util/scripts'],function(require) {
+    var callbackQueue, pageStatus, scripts;
+    pageStatus = require('pageStatus');
+    scripts = require('app/util/scripts');
+    callbackQueue = [];
+    window.fbAsyncInit = function() {
+      var cb, _i, _len;
+      FB.init({
+        appId: pageStatus.fbAppId,
+        cookie: true,
+        xfbml: false,
+        channelUrl: document.location.protocol + "//" + document.location.host + "/channel.html",
+        oauth: true,
+        status: true
+      });
+      for (_i = 0, _len = callbackQueue.length; _i < _len; _i++) {
+        cb = callbackQueue[_i];
+        cb();
+      }
+      return callbackQueue = null;
+    };
+    scripts.inject('//connect.facebook.net/en_US/all.js');
+    return {
+      execute: function(cb) {
+        if (callbackQueue === null) {
+          return cb();
+        } else {
+          return callbackQueue.push(cb);
+        }
+      }
+    };
+  });
+
+}).call(this);
+
+// moment.js
+// version : 1.7.2
+// author : Tim Wood
+// license : MIT
+// momentjs.com
+
+(function (undefined) {
+
+    /************************************
+        Constants
+    ************************************/
+
+    var moment,
+        VERSION = "1.7.2",
+        round = Math.round, i,
+        // internal storage for language config files
+        languages = {},
+        currentLanguage = 'en',
+
+        // check for nodeJS
+        hasModule = (typeof module !== 'undefined' && module.exports),
+
+        // Parameters to check for on the lang config.  This list of properties
+        // will be inherited from English if not provided in a language
+        // definition.  monthsParse is also a lang config property, but it
+        // cannot be inherited and as such cannot be enumerated here.
+        langConfigProperties = 'months|monthsShort|weekdays|weekdaysShort|weekdaysMin|longDateFormat|calendar|relativeTime|ordinal|meridiem'.split('|'),
+
+        // ASP.NET json date format regex
+        aspNetJsonRegex = /^\/?Date\((\-?\d+)/i,
+
+        // format tokens
+        formattingTokens = /(\[[^\[]*\])|(\\)?(Mo|MM?M?M?|Do|DDDo|DD?D?D?|ddd?d?|do?|w[o|w]?|YYYY|YY|a|A|hh?|HH?|mm?|ss?|SS?S?|zz?|ZZ?|.)/g,
+        localFormattingTokens = /(\[[^\[]*\])|(\\)?(LT|LL?L?L?)/g,
+
+        // parsing tokens
+        parseMultipleFormatChunker = /([0-9a-zA-Z\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+)/gi,
+
+        // parsing token regexes
+        parseTokenOneOrTwoDigits = /\d\d?/, // 0 - 99
+        parseTokenOneToThreeDigits = /\d{1,3}/, // 0 - 999
+        parseTokenThreeDigits = /\d{3}/, // 000 - 999
+        parseTokenFourDigits = /\d{1,4}/, // 0 - 9999
+        parseTokenWord = /[0-9a-z\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+/i, // any word characters or numbers
+        parseTokenTimezone = /Z|[\+\-]\d\d:?\d\d/i, // +00:00 -00:00 +0000 -0000 or Z
+        parseTokenT = /T/i, // T (ISO seperator)
+
+        // preliminary iso regex
+        // 0000-00-00 + T + 00 or 00:00 or 00:00:00 or 00:00:00.000 + +00:00 or +0000
+        isoRegex = /^\s*\d{4}-\d\d-\d\d(T(\d\d(:\d\d(:\d\d(\.\d\d?\d?)?)?)?)?([\+\-]\d\d:?\d\d)?)?/,
+        isoFormat = 'YYYY-MM-DDTHH:mm:ssZ',
+
+        // iso time formats and regexes
+        isoTimes = [
+            ['HH:mm:ss.S', /T\d\d:\d\d:\d\d\.\d{1,3}/],
+            ['HH:mm:ss', /T\d\d:\d\d:\d\d/],
+            ['HH:mm', /T\d\d:\d\d/],
+            ['HH', /T\d\d/]
+        ],
+
+        // timezone chunker "+10:00" > ["10", "00"] or "-1530" > ["-15", "30"]
+        parseTimezoneChunker = /([\+\-]|\d\d)/gi,
+
+        // getter and setter names
+        proxyGettersAndSetters = 'Month|Date|Hours|Minutes|Seconds|Milliseconds'.split('|'),
+        unitMillisecondFactors = {
+            'Milliseconds' : 1,
+            'Seconds' : 1e3,
+            'Minutes' : 6e4,
+            'Hours' : 36e5,
+            'Days' : 864e5,
+            'Months' : 2592e6,
+            'Years' : 31536e6
+        },
+
+        // format function strings
+        formatFunctions = {},
+
+        // tokens to ordinalize and pad
+        ordinalizeTokens = 'DDD w M D d'.split(' '),
+        paddedTokens = 'M D H h m s w'.split(' '),
+
+        /*
+         * moment.fn.format uses new Function() to create an inlined formatting function.
+         * Results are a 3x speed boost
+         * http://jsperf.com/momentjs-cached-format-functions
+         *
+         * These strings are appended into a function using replaceFormatTokens and makeFormatFunction
+         */
+        formatTokenFunctions = {
+            // a = placeholder
+            // b = placeholder
+            // t = the current moment being formatted
+            // v = getValueAtKey function
+            // o = language.ordinal function
+            // p = leftZeroFill function
+            // m = language.meridiem value or function
+            M    : function () {
+                return this.month() + 1;
+            },
+            MMM  : function (format) {
+                return getValueFromArray("monthsShort", this.month(), this, format);
+            },
+            MMMM : function (format) {
+                return getValueFromArray("months", this.month(), this, format);
+            },
+            D    : function () {
+                return this.date();
+            },
+            DDD  : function () {
+                var a = new Date(this.year(), this.month(), this.date()),
+                    b = new Date(this.year(), 0, 1);
+                return ~~(((a - b) / 864e5) + 1.5);
+            },
+            d    : function () {
+                return this.day();
+            },
+            dd   : function (format) {
+                return getValueFromArray("weekdaysMin", this.day(), this, format);
+            },
+            ddd  : function (format) {
+                return getValueFromArray("weekdaysShort", this.day(), this, format);
+            },
+            dddd : function (format) {
+                return getValueFromArray("weekdays", this.day(), this, format);
+            },
+            w    : function () {
+                var a = new Date(this.year(), this.month(), this.date() - this.day() + 5),
+                    b = new Date(a.getFullYear(), 0, 4);
+                return ~~((a - b) / 864e5 / 7 + 1.5);
+            },
+            YY   : function () {
+                return leftZeroFill(this.year() % 100, 2);
+            },
+            YYYY : function () {
+                return leftZeroFill(this.year(), 4);
+            },
+            a    : function () {
+                return this.lang().meridiem(this.hours(), this.minutes(), true);
+            },
+            A    : function () {
+                return this.lang().meridiem(this.hours(), this.minutes(), false);
+            },
+            H    : function () {
+                return this.hours();
+            },
+            h    : function () {
+                return this.hours() % 12 || 12;
+            },
+            m    : function () {
+                return this.minutes();
+            },
+            s    : function () {
+                return this.seconds();
+            },
+            S    : function () {
+                return ~~(this.milliseconds() / 100);
+            },
+            SS   : function () {
+                return leftZeroFill(~~(this.milliseconds() / 10), 2);
+            },
+            SSS  : function () {
+                return leftZeroFill(this.milliseconds(), 3);
+            },
+            Z    : function () {
+                var a = -this.zone(),
+                    b = "+";
+                if (a < 0) {
+                    a = -a;
+                    b = "-";
+                }
+                return b + leftZeroFill(~~(a / 60), 2) + ":" + leftZeroFill(~~a % 60, 2);
+            },
+            ZZ   : function () {
+                var a = -this.zone(),
+                    b = "+";
+                if (a < 0) {
+                    a = -a;
+                    b = "-";
+                }
+                return b + leftZeroFill(~~(10 * a / 6), 4);
+            }
+        };
+
+    function getValueFromArray(key, index, m, format) {
+        var lang = m.lang();
+        return lang[key].call ? lang[key](m, format) : lang[key][index];
+    }
+
+    function padToken(func, count) {
+        return function (a) {
+            return leftZeroFill(func.call(this, a), count);
+        };
+    }
+    function ordinalizeToken(func) {
+        return function (a) {
+            var b = func.call(this, a);
+            return b + this.lang().ordinal(b);
+        };
+    }
+
+    while (ordinalizeTokens.length) {
+        i = ordinalizeTokens.pop();
+        formatTokenFunctions[i + 'o'] = ordinalizeToken(formatTokenFunctions[i]);
+    }
+    while (paddedTokens.length) {
+        i = paddedTokens.pop();
+        formatTokenFunctions[i + i] = padToken(formatTokenFunctions[i], 2);
+    }
+    formatTokenFunctions.DDDD = padToken(formatTokenFunctions.DDD, 3);
+
+
+    /************************************
+        Constructors
+    ************************************/
+
+
+    // Moment prototype object
+    function Moment(date, isUTC, lang) {
+        this._d = date;
+        this._isUTC = !!isUTC;
+        this._a = date._a || null;
+        this._lang = lang || false;
+    }
+
+    // Duration Constructor
+    function Duration(duration) {
+        var data = this._data = {},
+            years = duration.years || duration.y || 0,
+            months = duration.months || duration.M || 0,
+            weeks = duration.weeks || duration.w || 0,
+            days = duration.days || duration.d || 0,
+            hours = duration.hours || duration.h || 0,
+            minutes = duration.minutes || duration.m || 0,
+            seconds = duration.seconds || duration.s || 0,
+            milliseconds = duration.milliseconds || duration.ms || 0;
+
+        // representation for dateAddRemove
+        this._milliseconds = milliseconds +
+            seconds * 1e3 + // 1000
+            minutes * 6e4 + // 1000 * 60
+            hours * 36e5; // 1000 * 60 * 60
+        // Because of dateAddRemove treats 24 hours as different from a
+        // day when working around DST, we need to store them separately
+        this._days = days +
+            weeks * 7;
+        // It is impossible translate months into days without knowing
+        // which months you are are talking about, so we have to store
+        // it separately.
+        this._months = months +
+            years * 12;
+
+        // The following code bubbles up values, see the tests for
+        // examples of what that means.
+        data.milliseconds = milliseconds % 1000;
+        seconds += absRound(milliseconds / 1000);
+
+        data.seconds = seconds % 60;
+        minutes += absRound(seconds / 60);
+
+        data.minutes = minutes % 60;
+        hours += absRound(minutes / 60);
+
+        data.hours = hours % 24;
+        days += absRound(hours / 24);
+
+        days += weeks * 7;
+        data.days = days % 30;
+
+        months += absRound(days / 30);
+
+        data.months = months % 12;
+        years += absRound(months / 12);
+
+        data.years = years;
+
+        this._lang = false;
+    }
+
+
+    /************************************
+        Helpers
+    ************************************/
+
+
+    function absRound(number) {
+        if (number < 0) {
+            return Math.ceil(number);
+        } else {
+            return Math.floor(number);
+        }
+    }
+
+    // left zero fill a number
+    // see http://jsperf.com/left-zero-filling for performance comparison
+    function leftZeroFill(number, targetLength) {
+        var output = number + '';
+        while (output.length < targetLength) {
+            output = '0' + output;
+        }
+        return output;
+    }
+
+    // helper function for _.addTime and _.subtractTime
+    function addOrSubtractDurationFromMoment(mom, duration, isAdding) {
+        var ms = duration._milliseconds,
+            d = duration._days,
+            M = duration._months,
+            currentDate;
+
+        if (ms) {
+            mom._d.setTime(+mom + ms * isAdding);
+        }
+        if (d) {
+            mom.date(mom.date() + d * isAdding);
+        }
+        if (M) {
+            currentDate = mom.date();
+            mom.date(1)
+                .month(mom.month() + M * isAdding)
+                .date(Math.min(currentDate, mom.daysInMonth()));
+        }
+    }
+
+    // check if is an array
+    function isArray(input) {
+        return Object.prototype.toString.call(input) === '[object Array]';
+    }
+
+    // compare two arrays, return the number of differences
+    function compareArrays(array1, array2) {
+        var len = Math.min(array1.length, array2.length),
+            lengthDiff = Math.abs(array1.length - array2.length),
+            diffs = 0,
+            i;
+        for (i = 0; i < len; i++) {
+            if (~~array1[i] !== ~~array2[i]) {
+                diffs++;
+            }
+        }
+        return diffs + lengthDiff;
+    }
+
+    // convert an array to a date.
+    // the array should mirror the parameters below
+    // note: all values past the year are optional and will default to the lowest possible value.
+    // [year, month, day , hour, minute, second, millisecond]
+    function dateFromArray(input, asUTC, hoursOffset, minutesOffset) {
+        var i, date, forValid = [];
+        for (i = 0; i < 7; i++) {
+            forValid[i] = input[i] = (input[i] == null) ? (i === 2 ? 1 : 0) : input[i];
+        }
+        // we store whether we used utc or not in the input array
+        input[7] = forValid[7] = asUTC;
+        // if the parser flagged the input as invalid, we pass the value along
+        if (input[8] != null) {
+            forValid[8] = input[8];
+        }
+        // add the offsets to the time to be parsed so that we can have a clean array
+        // for checking isValid
+        input[3] += hoursOffset || 0;
+        input[4] += minutesOffset || 0;
+        date = new Date(0);
+        if (asUTC) {
+            date.setUTCFullYear(input[0], input[1], input[2]);
+            date.setUTCHours(input[3], input[4], input[5], input[6]);
+        } else {
+            date.setFullYear(input[0], input[1], input[2]);
+            date.setHours(input[3], input[4], input[5], input[6]);
+        }
+        date._a = forValid;
+        return date;
+    }
+
+    // Loads a language definition into the `languages` cache.  The function
+    // takes a key and optionally values.  If not in the browser and no values
+    // are provided, it will load the language file module.  As a convenience,
+    // this function also returns the language values.
+    function loadLang(key, values) {
+        var i, m,
+            parse = [];
+
+        if (!values && hasModule) {
+            values = require('./lang/' + key);
+        }
+
+        for (i = 0; i < langConfigProperties.length; i++) {
+            // If a language definition does not provide a value, inherit
+            // from English
+            values[langConfigProperties[i]] = values[langConfigProperties[i]] ||
+              languages.en[langConfigProperties[i]];
+        }
+
+        for (i = 0; i < 12; i++) {
+            m = moment([2000, i]);
+            parse[i] = new RegExp('^' + (values.months[i] || values.months(m, '')) +
+                '|^' + (values.monthsShort[i] || values.monthsShort(m, '')).replace('.', ''), 'i');
+        }
+        values.monthsParse = values.monthsParse || parse;
+
+        languages[key] = values;
+
+        return values;
+    }
+
+    // Determines which language definition to use and returns it.
+    //
+    // With no parameters, it will return the global language.  If you
+    // pass in a language key, such as 'en', it will return the
+    // definition for 'en', so long as 'en' has already been loaded using
+    // moment.lang.  If you pass in a moment or duration instance, it
+    // will decide the language based on that, or default to the global
+    // language.
+    function getLangDefinition(m) {
+        var langKey = (typeof m === 'string') && m ||
+                      m && m._lang ||
+                      null;
+
+        return langKey ? (languages[langKey] || loadLang(langKey)) : moment;
+    }
+
+
+    /************************************
+        Formatting
+    ************************************/
+
+
+    function removeFormattingTokens(input) {
+        if (input.match(/\[.*\]/)) {
+            return input.replace(/^\[|\]$/g, "");
+        }
+        return input.replace(/\\/g, "");
+    }
+
+    function makeFormatFunction(format) {
+        var array = format.match(formattingTokens), i, length;
+
+        for (i = 0, length = array.length; i < length; i++) {
+            if (formatTokenFunctions[array[i]]) {
+                array[i] = formatTokenFunctions[array[i]];
+            } else {
+                array[i] = removeFormattingTokens(array[i]);
+            }
+        }
+
+        return function (mom) {
+            var output = "";
+            for (i = 0; i < length; i++) {
+                output += typeof array[i].call === 'function' ? array[i].call(mom, format) : array[i];
+            }
+            return output;
+        };
+    }
+
+    // format date using native date object
+    function formatMoment(m, format) {
+        var i = 5;
+
+        function replaceLongDateFormatTokens(input) {
+            return m.lang().longDateFormat[input] || input;
+        }
+
+        while (i-- && localFormattingTokens.test(format)) {
+            format = format.replace(localFormattingTokens, replaceLongDateFormatTokens);
+        }
+
+        if (!formatFunctions[format]) {
+            formatFunctions[format] = makeFormatFunction(format);
+        }
+
+        return formatFunctions[format](m);
+    }
+
+
+    /************************************
+        Parsing
+    ************************************/
+
+
+    // get the regex to find the next token
+    function getParseRegexForToken(token) {
+        switch (token) {
+        case 'DDDD':
+            return parseTokenThreeDigits;
+        case 'YYYY':
+            return parseTokenFourDigits;
+        case 'S':
+        case 'SS':
+        case 'SSS':
+        case 'DDD':
+            return parseTokenOneToThreeDigits;
+        case 'MMM':
+        case 'MMMM':
+        case 'dd':
+        case 'ddd':
+        case 'dddd':
+        case 'a':
+        case 'A':
+            return parseTokenWord;
+        case 'Z':
+        case 'ZZ':
+            return parseTokenTimezone;
+        case 'T':
+            return parseTokenT;
+        case 'MM':
+        case 'DD':
+        case 'YY':
+        case 'HH':
+        case 'hh':
+        case 'mm':
+        case 'ss':
+        case 'M':
+        case 'D':
+        case 'd':
+        case 'H':
+        case 'h':
+        case 'm':
+        case 's':
+            return parseTokenOneOrTwoDigits;
+        default :
+            return new RegExp(token.replace('\\', ''));
+        }
+    }
+
+    // function to convert string input to date
+    function addTimeToArrayFromToken(token, input, datePartArray, config) {
+        var a, b;
+
+        switch (token) {
+        // MONTH
+        case 'M' : // fall through to MM
+        case 'MM' :
+            datePartArray[1] = (input == null) ? 0 : ~~input - 1;
+            break;
+        case 'MMM' : // fall through to MMMM
+        case 'MMMM' :
+            for (a = 0; a < 12; a++) {
+                if (getLangDefinition().monthsParse[a].test(input)) {
+                    datePartArray[1] = a;
+                    b = true;
+                    break;
+                }
+            }
+            // if we didn't find a month name, mark the date as invalid.
+            if (!b) {
+                datePartArray[8] = false;
+            }
+            break;
+        // DAY OF MONTH
+        case 'D' : // fall through to DDDD
+        case 'DD' : // fall through to DDDD
+        case 'DDD' : // fall through to DDDD
+        case 'DDDD' :
+            if (input != null) {
+                datePartArray[2] = ~~input;
+            }
+            break;
+        // YEAR
+        case 'YY' :
+            datePartArray[0] = ~~input + (~~input > 70 ? 1900 : 2000);
+            break;
+        case 'YYYY' :
+            datePartArray[0] = ~~Math.abs(input);
+            break;
+        // AM / PM
+        case 'a' : // fall through to A
+        case 'A' :
+            config.isPm = ((input + '').toLowerCase() === 'pm');
+            break;
+        // 24 HOUR
+        case 'H' : // fall through to hh
+        case 'HH' : // fall through to hh
+        case 'h' : // fall through to hh
+        case 'hh' :
+            datePartArray[3] = ~~input;
+            break;
+        // MINUTE
+        case 'm' : // fall through to mm
+        case 'mm' :
+            datePartArray[4] = ~~input;
+            break;
+        // SECOND
+        case 's' : // fall through to ss
+        case 'ss' :
+            datePartArray[5] = ~~input;
+            break;
+        // MILLISECOND
+        case 'S' :
+        case 'SS' :
+        case 'SSS' :
+            datePartArray[6] = ~~ (('0.' + input) * 1000);
+            break;
+        // TIMEZONE
+        case 'Z' : // fall through to ZZ
+        case 'ZZ' :
+            config.isUTC = true;
+            a = (input + '').match(parseTimezoneChunker);
+            if (a && a[1]) {
+                config.tzh = ~~a[1];
+            }
+            if (a && a[2]) {
+                config.tzm = ~~a[2];
+            }
+            // reverse offsets
+            if (a && a[0] === '+') {
+                config.tzh = -config.tzh;
+                config.tzm = -config.tzm;
+            }
+            break;
+        }
+
+        // if the input is null, the date is not valid
+        if (input == null) {
+            datePartArray[8] = false;
+        }
+    }
+
+    // date from string and format string
+    function makeDateFromStringAndFormat(string, format) {
+        // This array is used to make a Date, either with `new Date` or `Date.UTC`
+        // We store some additional data on the array for validation
+        // datePartArray[7] is true if the Date was created with `Date.UTC` and false if created with `new Date`
+        // datePartArray[8] is false if the Date is invalid, and undefined if the validity is unknown.
+        var datePartArray = [0, 0, 1, 0, 0, 0, 0],
+            config = {
+                tzh : 0, // timezone hour offset
+                tzm : 0  // timezone minute offset
+            },
+            tokens = format.match(formattingTokens),
+            i, parsedInput;
+
+        for (i = 0; i < tokens.length; i++) {
+            parsedInput = (getParseRegexForToken(tokens[i]).exec(string) || [])[0];
+            if (parsedInput) {
+                string = string.slice(string.indexOf(parsedInput) + parsedInput.length);
+            }
+            // don't parse if its not a known token
+            if (formatTokenFunctions[tokens[i]]) {
+                addTimeToArrayFromToken(tokens[i], parsedInput, datePartArray, config);
+            }
+        }
+        // handle am pm
+        if (config.isPm && datePartArray[3] < 12) {
+            datePartArray[3] += 12;
+        }
+        // if is 12 am, change hours to 0
+        if (config.isPm === false && datePartArray[3] === 12) {
+            datePartArray[3] = 0;
+        }
+        // return
+        return dateFromArray(datePartArray, config.isUTC, config.tzh, config.tzm);
+    }
+
+    // date from string and array of format strings
+    function makeDateFromStringAndArray(string, formats) {
+        var output,
+            inputParts = string.match(parseMultipleFormatChunker) || [],
+            formattedInputParts,
+            scoreToBeat = 99,
+            i,
+            currentDate,
+            currentScore;
+        for (i = 0; i < formats.length; i++) {
+            currentDate = makeDateFromStringAndFormat(string, formats[i]);
+            formattedInputParts = formatMoment(new Moment(currentDate), formats[i]).match(parseMultipleFormatChunker) || [];
+            currentScore = compareArrays(inputParts, formattedInputParts);
+            if (currentScore < scoreToBeat) {
+                scoreToBeat = currentScore;
+                output = currentDate;
+            }
+        }
+        return output;
+    }
+
+    // date from iso format
+    function makeDateFromString(string) {
+        var format = 'YYYY-MM-DDT',
+            i;
+        if (isoRegex.exec(string)) {
+            for (i = 0; i < 4; i++) {
+                if (isoTimes[i][1].exec(string)) {
+                    format += isoTimes[i][0];
+                    break;
+                }
+            }
+            return parseTokenTimezone.exec(string) ?
+                makeDateFromStringAndFormat(string, format + ' Z') :
+                makeDateFromStringAndFormat(string, format);
+        }
+        return new Date(string);
+    }
+
+
+    /************************************
+        Relative Time
+    ************************************/
+
+
+    // helper function for moment.fn.from, moment.fn.fromNow, and moment.duration.fn.humanize
+    function substituteTimeAgo(string, number, withoutSuffix, isFuture, lang) {
+        var rt = lang.relativeTime[string];
+        return (typeof rt === 'function') ?
+            rt(number || 1, !!withoutSuffix, string, isFuture) :
+            rt.replace(/%d/i, number || 1);
+    }
+
+    function relativeTime(milliseconds, withoutSuffix, lang) {
+        var seconds = round(Math.abs(milliseconds) / 1000),
+            minutes = round(seconds / 60),
+            hours = round(minutes / 60),
+            days = round(hours / 24),
+            years = round(days / 365),
+            args = seconds < 45 && ['s', seconds] ||
+                minutes === 1 && ['m'] ||
+                minutes < 45 && ['mm', minutes] ||
+                hours === 1 && ['h'] ||
+                hours < 22 && ['hh', hours] ||
+                days === 1 && ['d'] ||
+                days <= 25 && ['dd', days] ||
+                days <= 45 && ['M'] ||
+                days < 345 && ['MM', round(days / 30)] ||
+                years === 1 && ['y'] || ['yy', years];
+        args[2] = withoutSuffix;
+        args[3] = milliseconds > 0;
+        args[4] = lang;
+        return substituteTimeAgo.apply({}, args);
+    }
+
+
+    /************************************
+        Top Level Functions
+    ************************************/
+
+
+    moment = function (input, format) {
+        if (input === null || input === '') {
+            return null;
+        }
+        var date,
+            matched;
+        // parse Moment object
+        if (moment.isMoment(input)) {
+            return new Moment(new Date(+input._d), input._isUTC, input._lang);
+        // parse string and format
+        } else if (format) {
+            if (isArray(format)) {
+                date = makeDateFromStringAndArray(input, format);
+            } else {
+                date = makeDateFromStringAndFormat(input, format);
+            }
+        // evaluate it as a JSON-encoded date
+        } else {
+            matched = aspNetJsonRegex.exec(input);
+            date = input === undefined ? new Date() :
+                matched ? new Date(+matched[1]) :
+                input instanceof Date ? input :
+                isArray(input) ? dateFromArray(input) :
+                typeof input === 'string' ? makeDateFromString(input) :
+                new Date(input);
+        }
+
+        return new Moment(date);
+    };
+
+    // creating with utc
+    moment.utc = function (input, format) {
+        if (isArray(input)) {
+            return new Moment(dateFromArray(input, true), true);
+        }
+        // if we don't have a timezone, we need to add one to trigger parsing into utc
+        if (typeof input === 'string' && !parseTokenTimezone.exec(input)) {
+            input += ' +0000';
+            if (format) {
+                format += ' Z';
+            }
+        }
+        return moment(input, format).utc();
+    };
+
+    // creating with unix timestamp (in seconds)
+    moment.unix = function (input) {
+        return moment(input * 1000);
+    };
+
+    // duration
+    moment.duration = function (input, key) {
+        var isDuration = moment.isDuration(input),
+            isNumber = (typeof input === 'number'),
+            duration = (isDuration ? input._data : (isNumber ? {} : input)),
+            ret;
+
+        if (isNumber) {
+            if (key) {
+                duration[key] = input;
+            } else {
+                duration.milliseconds = input;
+            }
+        }
+
+        ret = new Duration(duration);
+
+        if (isDuration) {
+            ret._lang = input._lang;
+        }
+
+        return ret;
+    };
+
+    // humanizeDuration
+    // This method is deprecated in favor of the new Duration object.  Please
+    // see the moment.duration method.
+    moment.humanizeDuration = function (num, type, withSuffix) {
+        return moment.duration(num, type === true ? null : type).humanize(type === true ? true : withSuffix);
+    };
+
+    // version number
+    moment.version = VERSION;
+
+    // default format
+    moment.defaultFormat = isoFormat;
+
+    // This function will load languages and then set the global language.  If
+    // no arguments are passed in, it will simply return the current global
+    // language key.
+    moment.lang = function (key, values) {
+        var i;
+
+        if (!key) {
+            return currentLanguage;
+        }
+        if (values || !languages[key]) {
+            loadLang(key, values);
+        }
+        if (languages[key]) {
+            // deprecated, to get the language definition variables, use the
+            // moment.fn.lang method or the getLangDefinition function.
+            for (i = 0; i < langConfigProperties.length; i++) {
+                moment[langConfigProperties[i]] = languages[key][langConfigProperties[i]];
+            }
+            moment.monthsParse = languages[key].monthsParse;
+            currentLanguage = key;
+        }
+    };
+
+    // returns language data
+    moment.langData = getLangDefinition;
+
+    // compare moment object
+    moment.isMoment = function (obj) {
+        return obj instanceof Moment;
+    };
+
+    // for typechecking Duration objects
+    moment.isDuration = function (obj) {
+        return obj instanceof Duration;
+    };
+
+    // Set default language, other languages will inherit from English.
+    moment.lang('en', {
+        months : "January_February_March_April_May_June_July_August_September_October_November_December".split("_"),
+        monthsShort : "Jan_Feb_Mar_Apr_May_Jun_Jul_Aug_Sep_Oct_Nov_Dec".split("_"),
+        weekdays : "Sunday_Monday_Tuesday_Wednesday_Thursday_Friday_Saturday".split("_"),
+        weekdaysShort : "Sun_Mon_Tue_Wed_Thu_Fri_Sat".split("_"),
+        weekdaysMin : "Su_Mo_Tu_We_Th_Fr_Sa".split("_"),
+        longDateFormat : {
+            LT : "h:mm A",
+            L : "MM/DD/YYYY",
+            LL : "MMMM D YYYY",
+            LLL : "MMMM D YYYY LT",
+            LLLL : "dddd, MMMM D YYYY LT"
+        },
+        meridiem : function (hours, minutes, isLower) {
+            if (hours > 11) {
+                return isLower ? 'pm' : 'PM';
+            } else {
+                return isLower ? 'am' : 'AM';
+            }
+        },
+        calendar : {
+            sameDay : '[Today at] LT',
+            nextDay : '[Tomorrow at] LT',
+            nextWeek : 'dddd [at] LT',
+            lastDay : '[Yesterday at] LT',
+            lastWeek : '[last] dddd [at] LT',
+            sameElse : 'L'
+        },
+        relativeTime : {
+            future : "in %s",
+            past : "%s ago",
+            s : "a few seconds",
+            m : "a minute",
+            mm : "%d minutes",
+            h : "an hour",
+            hh : "%d hours",
+            d : "a day",
+            dd : "%d days",
+            M : "a month",
+            MM : "%d months",
+            y : "a year",
+            yy : "%d years"
+        },
+        ordinal : function (number) {
+            var b = number % 10;
+            return (~~ (number % 100 / 10) === 1) ? 'th' :
+                (b === 1) ? 'st' :
+                (b === 2) ? 'nd' :
+                (b === 3) ? 'rd' : 'th';
+        }
+    });
+
+
+    /************************************
+        Moment Prototype
+    ************************************/
+
+
+    moment.fn = Moment.prototype = {
+
+        clone : function () {
+            return moment(this);
+        },
+
+        valueOf : function () {
+            return +this._d;
+        },
+
+        unix : function () {
+            return Math.floor(+this._d / 1000);
+        },
+
+        toString : function () {
+            return this._d.toString();
+        },
+
+        toDate : function () {
+            return this._d;
+        },
+
+        toArray : function () {
+            var m = this;
+            return [
+                m.year(),
+                m.month(),
+                m.date(),
+                m.hours(),
+                m.minutes(),
+                m.seconds(),
+                m.milliseconds(),
+                !!this._isUTC
+            ];
+        },
+
+        isValid : function () {
+            if (this._a) {
+                // if the parser finds that the input is invalid, it sets
+                // the eighth item in the input array to false.
+                if (this._a[8] != null) {
+                    return !!this._a[8];
+                }
+                return !compareArrays(this._a, (this._a[7] ? moment.utc(this._a) : moment(this._a)).toArray());
+            }
+            return !isNaN(this._d.getTime());
+        },
+
+        utc : function () {
+            this._isUTC = true;
+            return this;
+        },
+
+        local : function () {
+            this._isUTC = false;
+            return this;
+        },
+
+        format : function (inputString) {
+            return formatMoment(this, inputString ? inputString : moment.defaultFormat);
+        },
+
+        add : function (input, val) {
+            var dur = val ? moment.duration(+val, input) : moment.duration(input);
+            addOrSubtractDurationFromMoment(this, dur, 1);
+            return this;
+        },
+
+        subtract : function (input, val) {
+            var dur = val ? moment.duration(+val, input) : moment.duration(input);
+            addOrSubtractDurationFromMoment(this, dur, -1);
+            return this;
+        },
+
+        diff : function (input, val, asFloat) {
+            var inputMoment = this._isUTC ? moment(input).utc() : moment(input).local(),
+                zoneDiff = (this.zone() - inputMoment.zone()) * 6e4,
+                diff = this._d - inputMoment._d - zoneDiff,
+                year = this.year() - inputMoment.year(),
+                month = this.month() - inputMoment.month(),
+                date = this.date() - inputMoment.date(),
+                output;
+            if (val === 'months') {
+                output = year * 12 + month + date / 30;
+            } else if (val === 'years') {
+                output = year + (month + date / 30) / 12;
+            } else {
+                output = val === 'seconds' ? diff / 1e3 : // 1000
+                    val === 'minutes' ? diff / 6e4 : // 1000 * 60
+                    val === 'hours' ? diff / 36e5 : // 1000 * 60 * 60
+                    val === 'days' ? diff / 864e5 : // 1000 * 60 * 60 * 24
+                    val === 'weeks' ? diff / 6048e5 : // 1000 * 60 * 60 * 24 * 7
+                    diff;
+            }
+            return asFloat ? output : round(output);
+        },
+
+        from : function (time, withoutSuffix) {
+            return moment.duration(this.diff(time)).lang(this._lang).humanize(!withoutSuffix);
+        },
+
+        fromNow : function (withoutSuffix) {
+            return this.from(moment(), withoutSuffix);
+        },
+
+        calendar : function () {
+            var diff = this.diff(moment().sod(), 'days', true),
+                calendar = this.lang().calendar,
+                allElse = calendar.sameElse,
+                format = diff < -6 ? allElse :
+                diff < -1 ? calendar.lastWeek :
+                diff < 0 ? calendar.lastDay :
+                diff < 1 ? calendar.sameDay :
+                diff < 2 ? calendar.nextDay :
+                diff < 7 ? calendar.nextWeek : allElse;
+            return this.format(typeof format === 'function' ? format.apply(this) : format);
+        },
+
+        isLeapYear : function () {
+            var year = this.year();
+            return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+        },
+
+        isDST : function () {
+            return (this.zone() < moment([this.year()]).zone() ||
+                this.zone() < moment([this.year(), 5]).zone());
+        },
+
+        day : function (input) {
+            var day = this._isUTC ? this._d.getUTCDay() : this._d.getDay();
+            return input == null ? day :
+                this.add({ d : input - day });
+        },
+
+        startOf: function (val) {
+            // the following switch intentionally omits break keywords
+            // to utilize falling through the cases.
+            switch (val.replace(/s$/, '')) {
+            case 'year':
+                this.month(0);
+                /* falls through */
+            case 'month':
+                this.date(1);
+                /* falls through */
+            case 'day':
+                this.hours(0);
+                /* falls through */
+            case 'hour':
+                this.minutes(0);
+                /* falls through */
+            case 'minute':
+                this.seconds(0);
+                /* falls through */
+            case 'second':
+                this.milliseconds(0);
+                /* falls through */
+            }
+            return this;
+        },
+
+        endOf: function (val) {
+            return this.startOf(val).add(val.replace(/s?$/, 's'), 1).subtract('ms', 1);
+        },
+
+        sod: function () {
+            return this.clone().startOf('day');
+        },
+
+        eod: function () {
+            // end of day = start of day plus 1 day, minus 1 millisecond
+            return this.clone().endOf('day');
+        },
+
+        zone : function () {
+            return this._isUTC ? 0 : this._d.getTimezoneOffset();
+        },
+
+        daysInMonth : function () {
+            return moment.utc([this.year(), this.month() + 1, 0]).date();
+        },
+
+        // If passed a language key, it will set the language for this
+        // instance.  Otherwise, it will return the language configuration
+        // variables for this instance.
+        lang : function (lang) {
+            if (lang === undefined) {
+                return getLangDefinition(this);
+            } else {
+                this._lang = lang;
+                return this;
+            }
+        }
+    };
+
+    // helper for adding shortcuts
+    function makeGetterAndSetter(name, key) {
+        moment.fn[name] = function (input) {
+            var utc = this._isUTC ? 'UTC' : '';
+            if (input != null) {
+                this._d['set' + utc + key](input);
+                return this;
+            } else {
+                return this._d['get' + utc + key]();
+            }
+        };
+    }
+
+    // loop through and add shortcuts (Month, Date, Hours, Minutes, Seconds, Milliseconds)
+    for (i = 0; i < proxyGettersAndSetters.length; i ++) {
+        makeGetterAndSetter(proxyGettersAndSetters[i].toLowerCase(), proxyGettersAndSetters[i]);
+    }
+
+    // add shortcut for year (uses different syntax than the getter/setter 'year' == 'FullYear')
+    makeGetterAndSetter('year', 'FullYear');
+
+
+    /************************************
+        Duration Prototype
+    ************************************/
+
+
+    moment.duration.fn = Duration.prototype = {
+        weeks : function () {
+            return absRound(this.days() / 7);
+        },
+
+        valueOf : function () {
+            return this._milliseconds +
+              this._days * 864e5 +
+              this._months * 2592e6;
+        },
+
+        humanize : function (withSuffix) {
+            var difference = +this,
+                rel = this.lang().relativeTime,
+                output = relativeTime(difference, !withSuffix, this.lang()),
+                fromNow = difference <= 0 ? rel.past : rel.future;
+
+            if (withSuffix) {
+                if (typeof fromNow === 'function') {
+                    output = fromNow(output);
+                } else {
+                    output = fromNow.replace(/%s/i, output);
+                }
+            }
+
+            return output;
+        },
+
+        lang : moment.fn.lang
+    };
+
+    function makeDurationGetter(name) {
+        moment.duration.fn[name] = function () {
+            return this._data[name];
+        };
+    }
+
+    function makeDurationAsGetter(name, factor) {
+        moment.duration.fn['as' + name] = function () {
+            return +this / factor;
+        };
+    }
+
+    for (i in unitMillisecondFactors) {
+        if (unitMillisecondFactors.hasOwnProperty(i)) {
+            makeDurationAsGetter(i, unitMillisecondFactors[i]);
+            makeDurationGetter(i.toLowerCase());
+        }
+    }
+
+    makeDurationAsGetter('Weeks', 6048e5);
+
+
+    /************************************
+        Exposing Moment
+    ************************************/
+
+
+    // CommonJS module is defined
+    if (hasModule) {
+        module.exports = moment;
+    }
+    /*global ender:false */
+    if (typeof ender === 'undefined') {
+        // here, `this` means `window` in the browser, or `global` on the server
+        // add `moment` as a global object via a string identifier,
+        // for Closure Compiler "advanced" mode
+        this['moment'] = moment;
+    }
+    /*global define:false */
+    if (typeof define === "function" && define.amd) {
+        define("moment", [], function () {
+            return moment;
+        });
+    }
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+  define('app/authMachine',['require','app/util/ajax','app/util/names','app/util/metrics','app/fb','moment','persona','jquery.cookie'],function(require) {
+    var AuthMachine, ajax, fb, metrics, names;
+    ajax = require('app/util/ajax');
+    names = require('app/util/names');
+    metrics = require('app/util/metrics');
+    fb = require('app/fb');
+    require('moment');
+    require('persona');
+    require('jquery.cookie');
+    if (!(navigator.id.watch != null)) {
+      navigator.id.watch = navigator.id.experimental.watch;
+    }
+    if (!(navigator.id.request != null)) {
+      navigator.id.request = navigator.id.experimental.request;
+    }
+    AuthMachine = (function() {
+
+      function AuthMachine() {
+        this.attachFacebook = __bind(this.attachFacebook, this);
+
+        this.trackPerson = __bind(this.trackPerson, this);
+
+        this.onLoginSuccess = __bind(this.onLoginSuccess, this);
+
+        this.logout = __bind(this.logout, this);
+
+        this.isPersonaWithEmail = __bind(this.isPersonaWithEmail, this);
+
+        this.loginFacebook = __bind(this.loginFacebook, this);
+
+        this.loginPersona = __bind(this.loginPersona, this);
+
+        this.onFacebookLogout = __bind(this.onFacebookLogout, this);
+
+        this.onFacebookLogin = __bind(this.onFacebookLogin, this);
+
+        this.onPersonaLogout = __bind(this.onPersonaLogout, this);
+
+        this.onPersonaLogin = __bind(this.onPersonaLogin, this);
+
+        var cookieParts, loginCookie,
+          _this = this;
+        this.hidePersonaErrors = true;
+        this.stopListening = false;
+        loginCookie = $.cookie.get('login');
+        if (loginCookie != null) {
+          cookieParts = loginCookie.split(":");
+          this.mechanism = cookieParts[0];
+          this.email = decodeURIComponent(cookieParts[2]);
+          if (this.mechanism === "BID") {
+            navigator.id.watch({
+              loggedInUser: this.email,
+              onlogin: function() {},
+              onlogout: this.onPersonaLogout
+            });
+          } else if (this.mechanism === "FB") {
+            fb.execute(function() {
+              return FB.Event.subscribe('auth.logout', _this.onFacebookLogout);
+            });
+          }
+        } else {
+          navigator.id.watch({
+            loggedInUser: null,
+            onlogin: this.onPersonaLogin,
+            onlogout: function() {}
+          });
+          fb.execute(function() {
+            return FB.Event.subscribe('auth.login', _this.onFacebookLogin);
+          });
+        }
+      }
+
+      AuthMachine.prototype.onPersonaLogin = function(assertion) {
+        var _this = this;
+        if (!this.stopListening) {
+          this.stopListening = true;
+          return ajax.post({
+            polling: this.hidePersonaErrors,
+            url: '/login/persona',
+            data: {
+              assertion: assertion
+            },
+            success: function(person) {
+              return _this.trackPerson(person);
+            },
+            completed: function() {
+              return _this.stopListening = false;
+            }
+          });
+        }
+      };
+
+      AuthMachine.prototype.onPersonaLogout = function() {
+        console.log('Persona logout event fired');
+        $.cookie["delete"]('login');
+        return window.location.reload();
+      };
+
+      AuthMachine.prototype.onFacebookLogin = function(response) {
+        var _this = this;
+        if (!this.stopListening) {
+          if (response.authResponse) {
+            this.stopListening = true;
+            return ajax.post({
+              url: '/login/facebook',
+              data: {
+                accessToken: response.authResponse.accessToken
+              },
+              success: function(person) {
+                return _this.trackPerson(person);
+              },
+              completed: function() {
+                return _this.stopListening = false;
+              }
+            });
+          }
+        }
+      };
+
+      AuthMachine.prototype.onFacebookLogout = function() {
+        console.log('Facebook logout event fired');
+        $.cookie["delete"]('login');
+        return window.location.reload();
+      };
+
+      AuthMachine.prototype.loginPersona = function() {
+        var params;
+        this.hidePersonaErrors = false;
+        if (window.location.protocol === 'https:') {
+          params = {
+            siteLogo: '/img/logo-for-persona.png'
+          };
+        } else {
+          params = {
+            siteName: 'Voost'
+          };
+        }
+        return navigator.id.request(params);
+      };
+
+      AuthMachine.prototype.loginFacebook = function() {
+        var _this = this;
+        return fb.execute(function() {
+          return FB.login(_this.onFacebookLogin, {
+            scope: 'email,user_birthday,user_location'
+          });
+        });
+      };
+
+      AuthMachine.prototype.isPersonaWithEmail = function(email) {
+        return this.mechanism === "BID" && this.email === email;
+      };
+
+      AuthMachine.prototype.logout = function() {
+        var _this = this;
+        if (this.mechanism === "FB") {
+          fb.execute(function() {
+            return FB.logout();
+          });
+          return setTimeout(this.onFacebookLogout, 1500);
+        } else if (this.mechanism === "BID") {
+          navigator.id.logout();
+          return setTimeout(this.onPersonaLogout, 1500);
+        } else {
+          return console.log("Unknown mechanism: " + this.mechanism);
+        }
+      };
+
+      AuthMachine.prototype.onLoginSuccess = function(person) {
+        return window.location.reload();
+      };
+
+      AuthMachine.prototype.trackPerson = function(person) {
+        var after, data,
+          _this = this;
+        after = function() {
+          return _this.onLoginSuccess(person);
+        };
+        data = {
+          '$first_name': names.makeFirstName(person.name),
+          '$last_name': names.makeLastName(person.name),
+          '$email': person.email,
+          '$created': moment(person.firstLogin).toDate(),
+          '$last_login': moment(person.lastLogin).toDate(),
+          'userAgent': navigator.userAgent
+        };
+        metrics.setup(person.key, person.name);
+        return metrics.trackPerson(data, after);
+      };
+
+      AuthMachine.prototype.attachFacebook = function() {
+        var attach,
+          _this = this;
+        attach = function(response) {
+          var _this = this;
+          if (response.authResponse) {
+            return ajax.post({
+              url: '/account/addFacebook',
+              data: {
+                accessToken: response.authResponse.accessToken
+              },
+              success: function(data) {
+                return window.location.reload();
+              }
+            });
+          }
+        };
+        return fb.execute(function() {
+          return FB.login(attach, {
+            scope: 'email,user_birthday,user_location'
+          });
+        });
+      };
+
+      return AuthMachine;
+
+    })();
+    return new AuthMachine();
+  });
+
+}).call(this);
+
+/* ===========================================================
+ * bootstrap-tooltip.js v2.2.1
+ * http://twitter.github.com/bootstrap/javascript.html#tooltips
+ * Inspired by the original jQuery.tipsy by Jason Frame
+ * ===========================================================
+ * Copyright 2012 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ========================================================== */
+
+
+!function ($) {
+
+   // jshint ;_;
+
+
+ /* TOOLTIP PUBLIC CLASS DEFINITION
+  * =============================== */
+
+  var Tooltip = function (element, options) {
+    this.init('tooltip', element, options)
+  }
+
+  Tooltip.prototype = {
+
+    constructor: Tooltip
+
+  , init: function (type, element, options) {
+      var eventIn
+        , eventOut
+
+      this.type = type
+      this.$element = $(element)
+      this.options = this.getOptions(options)
+      this.enabled = true
+
+      if (this.options.trigger == 'click') {
+        this.$element.on('click.' + this.type, this.options.selector, $.proxy(this.toggle, this))
+      } else if (this.options.trigger != 'manual') {
+        eventIn = this.options.trigger == 'hover' ? 'mouseenter' : 'focus'
+        eventOut = this.options.trigger == 'hover' ? 'mouseleave' : 'blur'
+        this.$element.on(eventIn + '.' + this.type, this.options.selector, $.proxy(this.enter, this))
+        this.$element.on(eventOut + '.' + this.type, this.options.selector, $.proxy(this.leave, this))
+      }
+
+      this.options.selector ?
+        (this._options = $.extend({}, this.options, { trigger: 'manual', selector: '' })) :
+        this.fixTitle()
+    }
+
+  , getOptions: function (options) {
+      options = $.extend({}, $.fn[this.type].defaults, options, this.$element.data())
+
+      if (options.delay && typeof options.delay == 'number') {
+        options.delay = {
+          show: options.delay
+        , hide: options.delay
+        }
+      }
+
+      return options
+    }
+
+  , enter: function (e) {
+      var self = $(e.currentTarget)[this.type](this._options).data(this.type)
+
+      if (!self.options.delay || !self.options.delay.show) return self.show()
+
+      clearTimeout(this.timeout)
+      self.hoverState = 'in'
+      this.timeout = setTimeout(function() {
+        if (self.hoverState == 'in') self.show()
+      }, self.options.delay.show)
+    }
+
+  , leave: function (e) {
+      var self = $(e.currentTarget)[this.type](this._options).data(this.type)
+
+      if (this.timeout) clearTimeout(this.timeout)
+      if (!self.options.delay || !self.options.delay.hide) return self.hide()
+
+      self.hoverState = 'out'
+      this.timeout = setTimeout(function() {
+        if (self.hoverState == 'out') self.hide()
+      }, self.options.delay.hide)
+    }
+
+  , show: function () {
+      var $tip
+        , inside
+        , pos
+        , actualWidth
+        , actualHeight
+        , placement
+        , tp
+
+      if (this.hasContent() && this.enabled) {
+        $tip = this.tip()
+        this.setContent()
+
+        if (this.options.animation) {
+          $tip.addClass('fade')
+        }
+
+        placement = typeof this.options.placement == 'function' ?
+          this.options.placement.call(this, $tip[0], this.$element[0]) :
+          this.options.placement
+
+        inside = /in/.test(placement)
+
+        $('body').prepend($tip.detach().css({ top: 0, left: 0, display: 'block' }))
+
+        pos = this.getPosition(inside)
+
+        actualWidth = $tip[0].offsetWidth
+        actualHeight = $tip[0].offsetHeight
+
+        switch (inside ? placement.split(' ')[1] : placement) {
+          case 'bottom':
+            tp = {top: pos.top + pos.height, left: pos.left + pos.width / 2 - actualWidth / 2}
+            break
+          case 'top':
+            tp = {top: pos.top - actualHeight, left: pos.left + pos.width / 2 - actualWidth / 2}
+            break
+          case 'left':
+            tp = {top: pos.top + pos.height / 2 - actualHeight / 2, left: pos.left - actualWidth}
+            break
+          case 'right':
+            tp = {top: pos.top + pos.height / 2 - actualHeight / 2, left: pos.left + pos.width}
+            break
+        }
+
+        $tip
+          .offset(tp)
+          .addClass(placement)
+          .addClass('in')
+      }
+    }
+
+  , setContent: function () {
+      var $tip = this.tip()
+        , title = this.getTitle()
+
+      $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](title)
+      $tip.removeClass('fade in top bottom left right')
+    }
+
+  , hide: function () {
+      var that = this
+        , $tip = this.tip()
+
+      $tip.removeClass('in')
+
+      function removeWithAnimation() {
+        var timeout = setTimeout(function () {
+          $tip.off($.support.transition.end).detach()
+        }, 500)
+
+        $tip.one($.support.transition.end, function () {
+          clearTimeout(timeout)
+          $tip.detach()
+        })
+      }
+
+      $.support.transition && this.$tip.hasClass('fade') ?
+        removeWithAnimation() :
+        $tip.detach()
+
+      return this
+    }
+
+  , fixTitle: function () {
+      var $e = this.$element
+      if ($e.attr('title') || typeof($e.attr('data-original-title')) != 'string') {
+        $e.attr('data-original-title', $e.attr('title') || '').removeAttr('title')
+      }
+    }
+
+  , hasContent: function () {
+      return this.getTitle()
+    }
+
+  , getPosition: function (inside) {
+      return $.extend({}, (inside ? {top: 0, left: 0} : this.$element.offset()), {
+        width: this.$element[0].offsetWidth
+      , height: this.$element[0].offsetHeight
+      })
+    }
+
+  , getTitle: function () {
+      var title
+        , $e = this.$element
+        , o = this.options
+
+      title = $e.attr('data-original-title')
+        || (typeof o.title == 'function' ? o.title.call($e[0]) :  o.title)
+
+      return title
+    }
+
+  , tip: function () {
+      return this.$tip = this.$tip || $(this.options.template)
+    }
+
+  , validate: function () {
+      if (!this.$element[0].parentNode) {
+        this.hide()
+        this.$element = null
+        this.options = null
+      }
+    }
+
+  , enable: function () {
+      this.enabled = true
+    }
+
+  , disable: function () {
+      this.enabled = false
+    }
+
+  , toggleEnabled: function () {
+      this.enabled = !this.enabled
+    }
+
+  , toggle: function (e) {
+      var self = $(e.currentTarget)[this.type](this._options).data(this.type)
+      self[self.tip().hasClass('in') ? 'hide' : 'show']()
+    }
+
+  , destroy: function () {
+      this.hide().$element.off('.' + this.type).removeData(this.type)
+    }
+
+  }
+
+
+ /* TOOLTIP PLUGIN DEFINITION
+  * ========================= */
+
+  $.fn.tooltip = function ( option ) {
+    return this.each(function () {
+      var $this = $(this)
+        , data = $this.data('tooltip')
+        , options = typeof option == 'object' && option
+      if (!data) $this.data('tooltip', (data = new Tooltip(this, options)))
+      if (typeof option == 'string') data[option]()
+    })
+  }
+
+  $.fn.tooltip.Constructor = Tooltip
+
+  $.fn.tooltip.defaults = {
+    animation: true
+  , placement: 'top'
+  , selector: false
+  , template: '<div class="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner"></div></div>'
+  , trigger: 'hover'
+  , title: ''
+  , delay: 0
+  , html: false
+  }
+
+}(window.jQuery);
+define("bootstrap/bootstrap-tooltip", function(){});
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+    __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+  define('app/master/LoginModal',['require','app/authMachine','app/HasFields','app/fb','bootstrap-modal/bootstrap-modalmanager','bootstrap-modal/bootstrap-modal','bootstrap/bootstrap-tooltip'],function(require) {
+    var HasFields, LoginModal, authMachine, fb;
+    authMachine = require('app/authMachine');
+    HasFields = require('app/HasFields');
+    fb = require('app/fb');
+    require('bootstrap-modal/bootstrap-modalmanager');
+    require('bootstrap-modal/bootstrap-modal');
+    require('bootstrap/bootstrap-tooltip');
+    return LoginModal = (function(_super) {
+
+      __extends(LoginModal, _super);
+
+      function LoginModal() {
+        this.success = __bind(this.success, this);
+
+        var _this = this;
+        LoginModal.__super__.constructor.call(this);
+        this.modal = $('#loginModal');
+        this.addFields(['#loginButton', '#fbLoginButton', '#fbGood', '#fbBad'], this.modal);
+        fb.execute(function() {
+          _this.d.fbGood.show();
+          return _this.d.fbBad.hide();
+        });
+        this.d.fbLoginButton.click(function() {
+          return authMachine.loginFacebook();
+        });
+        this.d.loginButton.click(function() {
+          return authMachine.loginPersona();
+        });
+      }
+
+      LoginModal.prototype.success = function(butt, loginSuccess) {
+        var _this = this;
+        return $(butt).on('click', function(e) {
+          e.preventDefault();
+          $(e.currentTarget).tooltip('hide');
+          if (loginSuccess) {
+            authMachine.onLoginSuccess = loginSuccess;
+          }
+          authMachine.loginClickEvent = e;
+          return _this.modal.modal();
+        });
+      };
+
+      return LoginModal;
+
+    })(HasFields);
+  });
+
+}).call(this);
+
+/* ============================================================
+ * bootstrap-dropdown.js v2.2.1
+ * http://twitter.github.com/bootstrap/javascript.html#dropdowns
+ * ============================================================
+ * Copyright 2012 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ============================================================ */
+
+
+!function ($) {
+
+   // jshint ;_;
+
+
+ /* DROPDOWN CLASS DEFINITION
+  * ========================= */
+
+  var toggle = '[data-toggle=dropdown]'
+    , Dropdown = function (element) {
+        var $el = $(element).on('click.dropdown.data-api', this.toggle)
+        $('html').on('click.dropdown.data-api', function () {
+          $el.parent().removeClass('open')
+        })
+      }
+
+  Dropdown.prototype = {
+
+    constructor: Dropdown
+
+  , toggle: function (e) {
+      var $this = $(this)
+        , $parent
+        , isActive
+
+      if ($this.is('.disabled, :disabled')) return
+
+      $parent = getParent($this)
+
+      isActive = $parent.hasClass('open')
+
+      clearMenus()
+
+      if (!isActive) {
+        $parent.toggleClass('open')
+        $this.focus()
+      }
+
+      return false
+    }
+
+  , keydown: function (e) {
+      var $this
+        , $items
+        , $active
+        , $parent
+        , isActive
+        , index
+
+      if (!/(38|40|27)/.test(e.keyCode)) return
+
+      $this = $(this)
+
+      e.preventDefault()
+      e.stopPropagation()
+
+      if ($this.is('.disabled, :disabled')) return
+
+      $parent = getParent($this)
+
+      isActive = $parent.hasClass('open')
+
+      if (!isActive || (isActive && e.keyCode == 27)) return $this.click()
+
+      $items = $('[role=menu] li:not(.divider) a', $parent)
+
+      if (!$items.length) return
+
+      index = $items.index($items.filter(':focus'))
+
+      if (e.keyCode == 38 && index > 0) index--                                        // up
+      if (e.keyCode == 40 && index < $items.length - 1) index++                        // down
+      if (!~index) index = 0
+
+      $items
+        .eq(index)
+        .focus()
+    }
+
+  }
+
+  function clearMenus() {
+    $(toggle).each(function () {
+      getParent($(this)).removeClass('open')
+    })
+  }
+
+  function getParent($this) {
+    var selector = $this.attr('data-target')
+      , $parent
+
+    if (!selector) {
+      selector = $this.attr('href')
+      selector = selector && /#/.test(selector) && selector.replace(/.*(?=#[^\s]*$)/, '') //strip for ie7
+    }
+
+    $parent = $(selector)
+    $parent.length || ($parent = $this.parent())
+
+    return $parent
+  }
+
+
+  /* DROPDOWN PLUGIN DEFINITION
+   * ========================== */
+
+  $.fn.dropdown = function (option) {
+    return this.each(function () {
+      var $this = $(this)
+        , data = $this.data('dropdown')
+      if (!data) $this.data('dropdown', (data = new Dropdown(this)))
+      if (typeof option == 'string') data[option].call($this)
+    })
+  }
+
+  $.fn.dropdown.Constructor = Dropdown
+
+
+  /* APPLY TO STANDARD DROPDOWN ELEMENTS
+   * =================================== */
+
+  $(document)
+    .on('click.dropdown.data-api touchstart.dropdown.data-api', clearMenus)
+    .on('click.dropdown touchstart.dropdown.data-api', '.dropdown form', function (e) { e.stopPropagation() })
+    .on('click.dropdown.data-api touchstart.dropdown.data-api'  , toggle, Dropdown.prototype.toggle)
+    .on('keydown.dropdown.data-api touchstart.dropdown.data-api', toggle + ', [role=menu]' , Dropdown.prototype.keydown)
+
+}(window.jQuery);
+define("bootstrap/bootstrap-dropdown", function(){});
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/master/LoggedInMenu',['require','app/authMachine','bootstrap/bootstrap-dropdown'],function(require) {
+    var LoggedInMenu, authMachine;
+    authMachine = require('app/authMachine');
+    require('bootstrap/bootstrap-dropdown');
+    return LoggedInMenu = (function() {
+
+      function LoggedInMenu() {
+        var _this = this;
+        $('.logoutButton').click(function(e) {
+          e.preventDefault();
+          return authMachine.logout();
+        });
+      }
+
+      return LoggedInMenu;
+
+    })();
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/util/tooltip',['require','bootstrap/bootstrap-tooltip'],function(require) {
+    require('bootstrap/bootstrap-tooltip');
+    return {
+      message: function(elem, title, place, length) {
+        if (place == null) {
+          place = 'bottom';
+        }
+        if (length == null) {
+          length = 5000;
+        }
+        elem.tooltip('hide').tooltip('destroy').one('blur.tooltip', function() {
+          return elem.tooltip('hide');
+        });
+        elem.tooltip({
+          placement: place,
+          trigger: 'manual',
+          title: function() {
+            return title;
+          },
+          html: true
+        });
+        elem.tooltip('show');
+        return setTimeout(function() {
+          return elem.tooltip('hide');
+        }, length);
+      },
+      setup: function(config) {
+        if (config) {
+          if (config.elem) {
+            return config.elem.tooltip(config);
+          } else {
+            return $('[rel="tooltip"]').tooltip(config);
+          }
+        } else {
+          return $('[rel="tooltip"]').tooltip();
+        }
+      }
+    };
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/onError',['require','app/util/sanity','app/util/ajax','app/util/common','pageStatus'],function(require) {
+    var ajax, pageStatus, sanity, util;
+    sanity = require('app/util/sanity');
+    ajax = require('app/util/ajax');
+    util = require('app/util/common');
+    pageStatus = require('pageStatus');
+    return {
+      enablePostback: function() {
+        var oldOnError;
+        if (pageStatus.situation === 'PRODUCTION' || pageStatus.situation === 'SANDBOX') {
+          if (window.onerror) {
+            oldOnError = window.onerror;
+          }
+          return window.onerror = function(message, script, linenumber) {
+            var agent, data;
+            agent = window.navigator.userAgent;
+            if (agent.contains('Firefox') !== -1 && message === 'Error loading script') {
+              return true;
+            } else if (linenumber === 0 && message === 'Script error.') {
+              return true;
+            } else if (message.contains('TopLine is not defined') || message === "'t.d.fbGood' is null or not an object" || message.contains('atomicFindClose')) {
+              return true;
+            } else if (message === "Object doesn't support this property or method" && agent.contains('MSIE 7.0') && script.contains('event_about')) {
+              return true;
+            } else if (message === "TypeError: can't access dead object") {
+              return true;
+            }
+            data = {
+              message: message,
+              script: script,
+              linenumber: linenumber,
+              url: document.location.href,
+              userAgent: agent
+            };
+            ajax.post({
+              url: '/error',
+              data: {
+                data: util.toJSON(data)
+              }
+            });
+            if (oldOnError) {
+              oldOnError();
+            }
+            return false;
+          };
+        }
+      }
+    };
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+  define('app/master/Page',['require','app/util/sanity','app/search','pageStatus','app/HasFields','app/master/LoginModal','app/master/LoggedInMenu','app/util/common','app/util/tooltip','app/onError'],function(require) {
+    var HasFields, LoggedInMenu, LoginModal, Page, onError, pageStatus, tooltip, util;
+    require('app/util/sanity');
+    require('app/search');
+    pageStatus = require('pageStatus');
+    HasFields = require('app/HasFields');
+    LoginModal = require('app/master/LoginModal');
+    LoggedInMenu = require('app/master/LoggedInMenu');
+    util = require('app/util/common');
+    tooltip = require('app/util/tooltip');
+    onError = require('app/onError');
+    return Page = (function(_super) {
+
+      __extends(Page, _super);
+
+      function Page() {
+        var currentHost;
+        Page.__super__.constructor.call(this);
+        onError.enablePostback();
+        if (pageStatus.loggedIn) {
+          this.loggedInMenu = new LoggedInMenu();
+        } else {
+          this.loginModal = new LoginModal();
+        }
+        tooltip.setup({
+          elem: $('#footer #buildClick'),
+          trigger: 'click',
+          title: pageStatus.appVersion,
+          placement: 'left'
+        });
+        currentHost = document.location.hostname.toLowerCase();
+        $('body').on('click', 'a.remoteLink', function(e) {
+          var linkHost;
+          if (window._gaq) {
+            linkHost = this.hostname.toLowerCase();
+            if (linkHost && linkHost !== currentHost) {
+              e.preventDefault();
+              window._gaq.push(['_trackPageview', this.href]);
+              if ($(this).attr('target') === '_blank') {
+                return window.open(this.href);
+              } else {
+                return window.location = this.href;
+              }
+            }
+          }
+        });
+      }
+
+      return Page;
+
+    })(HasFields);
+  });
+
+}).call(this);
+
+/**
+ * Copyright (c) 2010 Maxim Vasiliev
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * @author Maxim Vasiliev
+ * Date: 09.09.2010
+ * Time: 19:02:33
+ */
+
+
+var form2js = (function()
+{
+
+
+	/**
+	 * Returns form values represented as Javascript object
+	 * "name" attribute defines structure of resulting object
+	 *
+	 * @param rootNode {Element|String} root form element (or it's id) or array of root elements
+	 * @param delimiter {String} structure parts delimiter defaults to '.'
+	 * @param skipEmpty {Boolean} should skip empty text values, defaults to true
+	 * @param emptyToNull {Boolean} should empty values be converted to null?
+	 * @param nodeCallback {Function} custom function to get node value
+	 * @param useIdIfEmptyName {Boolean} if true value of id attribute of field will be used if name of field is empty
+	 */
+	function form2js(rootNode, delimiter, skipEmpty, emptyToNull, nodeCallback, useIdIfEmptyName)
+	{
+		if (typeof skipEmpty == 'undefined' || skipEmpty == null) skipEmpty = true;
+		if (typeof emptyToNull == 'undefined' || emptyToNull == null) emptyToNull = true;
+		if (typeof delimiter == 'undefined' || delimiter == null) delimiter = '.';
+		if (arguments.length < 6) useIdIfEmptyName = false;
+
+		rootNode = typeof rootNode == 'string' ? document.getElementById(rootNode) : rootNode;
+
+		var formValues = [],
+			currNode,
+			i = 0;
+
+		/* If rootNode is array - combine values */
+		if (rootNode.constructor == Array || (typeof NodeList != 'undefined' && rootNode.constructor == NodeList))
+		{
+			while(currNode = rootNode[i++])
+			{
+				formValues = formValues.concat(getFormValues(currNode, nodeCallback, useIdIfEmptyName));
+			}
+		}
+		else
+		{
+			formValues = getFormValues(rootNode, nodeCallback, useIdIfEmptyName);
+		}
+
+		return processNameValues(formValues, skipEmpty, emptyToNull, delimiter);
+	}
+
+	/**
+	 * Processes collection of { name: 'name', value: 'value' } objects.
+	 * @param nameValues
+	 * @param skipEmpty if true skips elements with value == '' or value == null
+	 * @param delimiter
+	 */
+	function processNameValues(nameValues, skipEmpty, emptyToNull, delimiter)
+	{
+		var result = {},
+			arrays = {},
+			i, j, k, l,
+			value,
+			nameParts,
+			currResult,
+			arrNameFull,
+			arrName,
+			arrIdx,
+			namePart,
+			name,
+			_nameParts;
+
+		for (i = 0; i < nameValues.length; i++)
+		{
+			value = nameValues[i].value;
+
+			if (emptyToNull && (value === '')) { value = null; }
+			if (skipEmpty && (value === '' || value === null)) continue;
+
+			name = nameValues[i].name;
+			if (typeof name === 'undefined') continue;
+
+			_nameParts = name.split(delimiter);
+			nameParts = [];
+			currResult = result;
+			arrNameFull = '';
+
+			for(j = 0; j < _nameParts.length; j++)
+			{
+				namePart = _nameParts[j].split('][');
+				if (namePart.length > 1)
+				{
+					for(k = 0; k < namePart.length; k++)
+					{
+						if (k == 0)
+						{
+							namePart[k] = namePart[k] + ']';
+						}
+						else if (k == namePart.length - 1)
+						{
+							namePart[k] = '[' + namePart[k];
+						}
+						else
+						{
+							namePart[k] = '[' + namePart[k] + ']';
+						}
+
+						arrIdx = namePart[k].match(/([a-z_]+)?\[([a-z_][a-z0-9_]+?)\]/i);
+						if (arrIdx)
+						{
+							for(l = 1; l < arrIdx.length; l++)
+							{
+								if (arrIdx[l]) nameParts.push(arrIdx[l]);
+							}
+						}
+						else{
+							nameParts.push(namePart[k]);
+						}
+					}
+				}
+				else
+					nameParts = nameParts.concat(namePart);
+			}
+
+			for (j = 0; j < nameParts.length; j++)
+			{
+				namePart = nameParts[j];
+
+				if (namePart.indexOf('[]') > -1 && j == nameParts.length - 1)
+				{
+					arrName = namePart.substr(0, namePart.indexOf('['));
+					arrNameFull += arrName;
+
+					if (!currResult[arrName]) currResult[arrName] = [];
+					currResult[arrName].push(value);
+				}
+				else if (namePart.indexOf('[') > -1)
+				{
+					arrName = namePart.substr(0, namePart.indexOf('['));
+					arrIdx = namePart.replace(/(^([a-z_]+)?\[)|(\]$)/gi, '');
+
+					/* Unique array name */
+					arrNameFull += '_' + arrName + '_' + arrIdx;
+
+					/*
+					 * Because arrIdx in field name can be not zero-based and step can be
+					 * other than 1, we can't use them in target array directly.
+					 * Instead we're making a hash where key is arrIdx and value is a reference to
+					 * added array element
+					 */
+
+					if (!arrays[arrNameFull]) arrays[arrNameFull] = {};
+					if (arrName != '' && !currResult[arrName]) currResult[arrName] = [];
+
+					if (j == nameParts.length - 1)
+					{
+						if (arrName == '')
+						{
+							currResult.push(value);
+							arrays[arrNameFull][arrIdx] = currResult[currResult.length - 1];
+						}
+						else
+						{
+							currResult[arrName].push(value);
+							arrays[arrNameFull][arrIdx] = currResult[arrName][currResult[arrName].length - 1];
+						}
+					}
+					else
+					{
+						if (!arrays[arrNameFull][arrIdx])
+						{
+							if ((/^[a-z_]+\[?/i).test(nameParts[j+1])) currResult[arrName].push({});
+							else currResult[arrName].push([]);
+
+							arrays[arrNameFull][arrIdx] = currResult[arrName][currResult[arrName].length - 1];
+						}
+					}
+
+					currResult = arrays[arrNameFull][arrIdx];
+				}
+				else
+				{
+					arrNameFull += namePart;
+
+					if (j < nameParts.length - 1) /* Not the last part of name - means object */
+					{
+						if (!currResult[namePart]) currResult[namePart] = {};
+						currResult = currResult[namePart];
+					}
+					else
+					{
+						currResult[namePart] = value;
+					}
+				}
+			}
+		}
+
+		return result;
+	}
+
+    function getFormValues(rootNode, nodeCallback, useIdIfEmptyName)
+    {
+        var result = extractNodeValues(rootNode, nodeCallback, useIdIfEmptyName);
+        return result.length > 0 ? result : getSubFormValues(rootNode, nodeCallback, useIdIfEmptyName);
+    }
+
+    function getSubFormValues(rootNode, nodeCallback, useIdIfEmptyName)
+	{
+		var result = [],
+			currentNode = rootNode.firstChild;
+
+		while (currentNode)
+		{
+			var currentResult = extractNodeValues(currentNode, nodeCallback, useIdIfEmptyName);
+            		for (var i = 0; i < currentResult.length;i++ ) {
+                		if(currentResult[i].value !== null) {
+                    			result[result.length] = currentResult[i];
+                		}
+            		}
+			currentNode = currentNode.nextSibling;
+		}
+
+		return result;
+	}
+
+    function extractNodeValues(node, nodeCallback, useIdIfEmptyName) {
+        var callbackResult, fieldValue, result, fieldName = getFieldName(node, useIdIfEmptyName);
+
+        callbackResult = nodeCallback && nodeCallback(node);
+
+        if (callbackResult && callbackResult.name) {
+            result = [callbackResult];
+        }
+        else if (fieldName != '' && node.nodeName.match(/INPUT|TEXTAREA/i)) {
+            fieldValue = getFieldValue(node);
+	        if (fieldValue == null && node.type == 'radio')
+                result = [];
+            else
+                result = [ { name: fieldName, value: fieldValue} ];
+        }
+        else if (fieldName != '' && node.nodeName.match(/SELECT/i)) {
+	        fieldValue = getFieldValue(node);
+	        result = [ { name: fieldName.replace(/\[\]$/, ''), value: fieldValue } ];
+        }
+        else {
+            result = getSubFormValues(node, nodeCallback, useIdIfEmptyName);
+        }
+
+        return result;
+    }
+
+	function getFieldName(node, useIdIfEmptyName)
+	{
+		if (node.name && node.name != '') return node.name;
+		else if (useIdIfEmptyName && node.id && node.id != '') return node.id;
+		else return '';
+	}
+
+
+	function getFieldValue(fieldNode)
+	{
+		if (fieldNode.disabled) return null;
+
+		switch (fieldNode.nodeName) {
+			case 'INPUT':
+			case 'TEXTAREA':
+				switch (fieldNode.type.toLowerCase()) {
+					case 'radio':
+						if (fieldNode.checked) return fieldNode.value;
+						break;
+					case 'checkbox':
+                        if (fieldNode.checked && fieldNode.value === 'true' || fieldNode.value === 'on') return true;
+                        if (!fieldNode.checked && fieldNode.value === 'true' || fieldNode.value === 'on') return false;
+						if (fieldNode.checked) return fieldNode.value;
+						break;
+
+					case 'button':
+					case 'reset':
+					case 'submit':
+					case 'image':
+						return '';
+						break;
+
+					default:
+						// special case for our use of jquery.placeholder.js
+						if (fieldNode.className && fieldNode.className.indexOf('placeholder') != -1) {
+							if (fieldNode.value !== fieldNode.getAttribute('placeholder')) {
+								return fieldNode.value;
+							}
+						} else {
+							return fieldNode.value;
+						}
+						break;
+				}
+				break;
+
+			case 'SELECT':
+				return getSelectedOptionValue(fieldNode);
+				break;
+
+			default:
+				break;
+		}
+
+		return null;
+	}
+
+	function getSelectedOptionValue(selectNode)
+	{
+		var multiple = selectNode.multiple,
+			result = [],
+			options,
+			i, l;
+
+		if (!multiple) return selectNode.value;
+
+		for (options = selectNode.getElementsByTagName('option'), i = 0, l = options.length; i < l; i++)
+		{
+			if (options[i].selected) result.push(options[i].value);
+		}
+
+		return result;
+	}
+
+	return form2js;
+
+})();
+
+define("form2js", function(){});
+
+/**
+ * Copyright (c) 2010 Maxim Vasiliev
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * @author Maxim Vasiliev
+ * Date: 19.09.11
+ * Time: 23:40
+ */
+
+var js2form = (function()
+{
+
+
+	var _subArrayRegexp = /^\[\d+?\]/,
+			_subObjectRegexp = /^[a-zA-Z_][a-zA-Z_0-9]+/,
+			_arrayItemRegexp = /\[[0-9]+?\]$/,
+			_lastIndexedArrayRegexp = /(.*)(\[)([0-9]*)(\])$/,
+			_arrayOfArraysRegexp = /\[([0-9]+)\]\[([0-9]+)\]/g,
+			_inputOrTextareaRegexp = /INPUT|TEXTAREA/i;
+
+	/**
+	 *
+	 * @param rootNode
+	 * @param data
+	 * @param delimiter
+	 * @param nodeCallback
+	 * @param useIdIfEmptyName
+	 * @param shouldClean should we empty out fields first?
+	 */
+	function js2form(rootNode, data, delimiter, nodeCallback, useIdIfEmptyName, shouldClean)
+	{
+		if (arguments.length < 3) delimiter = '.';
+		if (arguments.length < 4) nodeCallback = null;
+		if (arguments.length < 5) useIdIfEmptyName = false;
+		if (arguments.length < 6) shouldClean = true;
+
+		var fieldValues,
+				formFieldsByName;
+
+		fieldValues = object2array(data);
+		formFieldsByName = getFields(rootNode, useIdIfEmptyName, delimiter, {}, shouldClean);
+
+		for (var i = 0; i < fieldValues.length; i++)
+		{
+			var fieldName = fieldValues[i].name,
+					fieldValue = fieldValues[i].value;
+
+			if (typeof formFieldsByName[fieldName] != 'undefined')
+			{
+				setValue(formFieldsByName[fieldName], fieldValue);
+			}
+			else if (typeof formFieldsByName[fieldName.replace(_arrayItemRegexp, '[]')] != 'undefined')
+			{
+				setValue(formFieldsByName[fieldName.replace(_arrayItemRegexp, '[]')], fieldValue);
+			}
+		}
+	}
+
+	function setValue(field, value)
+	{
+		var children, i, l;
+
+		if (field instanceof Array)
+		{
+			for (i = 0; i < field.length; i++)
+			{
+				if (value == 'on' || value == 'true' || value == '1')
+					field[i].checked = true;
+				else
+					field[i].checked = false
+			}
+		}
+		else if (_inputOrTextareaRegexp.test(field.nodeName))
+		{
+			if (value)
+				field.value = value;
+		}
+		else if (/SELECT/i.test(field.nodeName))
+		{
+			children = field.getElementsByTagName('option');
+			for (i = 0,l = children.length; i < l; i++)
+			{
+				if (children[i].value == value)
+				{
+					children[i].selected = true;
+					if (field.multiple) break;
+				}
+				else if (!field.multiple)
+				{
+					children[i].selected = false;
+				}
+			}
+		}
+	}
+
+	function getFields(rootNode, useIdIfEmptyName, delimiter, arrayIndexes, shouldClean)
+	{
+		if (arguments.length < 4) arrayIndexes = {};
+
+		var result = {},
+			currNode = rootNode.firstChild,
+			name, nameNormalized,
+			subFieldName,
+			i, j, l,
+			options;
+
+		while (currNode)
+		{
+			name = '';
+
+			if (currNode.name && currNode.name != '')
+			{
+				name = currNode.name;
+			}
+			else if (useIdIfEmptyName && currNode.id && currNode.id != '')
+			{
+				name = currNode.id;
+			}
+
+			if (name == '')
+			{
+				var subFields = getFields(currNode, useIdIfEmptyName, delimiter, arrayIndexes, shouldClean);
+				for (subFieldName in subFields)
+				{
+					if (typeof result[subFieldName] == 'undefined')
+					{
+						result[subFieldName] = subFields[subFieldName];
+					}
+					else
+					{
+						for (i = 0; i < subFields[subFieldName].length; i++)
+						{
+							result[subFieldName].push(subFields[subFieldName][i]);
+						}
+					}
+				}
+			}
+			else
+			{
+				if (/SELECT/i.test(currNode.nodeName))
+				{
+					for(j = 0, options = currNode.getElementsByTagName('option'), l = options.length; j < l; j++)
+					{
+						if (shouldClean)
+						{
+							options[j].selected = false;
+						}
+
+						nameNormalized = normalizeName(name, delimiter, arrayIndexes);
+						result[nameNormalized] = currNode;
+					}
+				}
+				else if (/INPUT/i.test(currNode.nodeName) && /CHECKBOX|RADIO/i.test(currNode.type))
+				{
+					if(shouldClean)
+					{
+						currNode.checked = false;
+					}
+
+					nameNormalized = normalizeName(name, delimiter, arrayIndexes);
+					nameNormalized = nameNormalized.replace(_arrayItemRegexp, '[]');
+					if (!result[nameNormalized]) result[nameNormalized] = [];
+					result[nameNormalized].push(currNode);
+				}
+				else
+				{
+					if (shouldClean)
+					{
+						currNode.value = '';
+					}
+
+					nameNormalized = normalizeName(name, delimiter, arrayIndexes);
+					result[nameNormalized] = currNode;
+				}
+			}
+
+			currNode = currNode.nextSibling;
+		}
+
+		return result;
+	}
+
+	/**
+	 * Normalizes names of arrays, puts correct indexes (consecutive and ordered by element appearance in HTML)
+	 * @param name
+	 * @param delimiter
+	 * @param arrayIndexes
+	 */
+	function normalizeName(name, delimiter, arrayIndexes)
+	{
+		var nameChunksNormalized = [],
+				nameChunks = name.split(delimiter),
+				currChunk,
+				nameMatches,
+				nameNormalized,
+				currIndex,
+				newIndex,
+				i;
+
+		name = name.replace(_arrayOfArraysRegexp, '[$1].[$2]');
+		for (i = 0; i < nameChunks.length; i++)
+		{
+			currChunk = nameChunks[i];
+			nameChunksNormalized.push(currChunk);
+			nameMatches = currChunk.match(_lastIndexedArrayRegexp);
+			if (nameMatches != null)
+			{
+				nameNormalized = nameChunksNormalized.join(delimiter);
+				currIndex = nameNormalized.replace(_lastIndexedArrayRegexp, '$3');
+				nameNormalized = nameNormalized.replace(_lastIndexedArrayRegexp, '$1');
+
+				if (typeof (arrayIndexes[nameNormalized]) == 'undefined')
+				{
+					arrayIndexes[nameNormalized] = {
+						lastIndex: -1,
+						indexes: {}
+					};
+				}
+
+				if (currIndex == '' || typeof arrayIndexes[nameNormalized].indexes[currIndex] == 'undefined')
+				{
+					arrayIndexes[nameNormalized].lastIndex++;
+					arrayIndexes[nameNormalized].indexes[currIndex] = arrayIndexes[nameNormalized].lastIndex;
+				}
+
+				newIndex = arrayIndexes[nameNormalized].indexes[currIndex];
+				nameChunksNormalized[nameChunksNormalized.length - 1] = currChunk.replace(_lastIndexedArrayRegexp, '$1$2' + newIndex + '$4');
+			}
+		}
+
+		nameNormalized = nameChunksNormalized.join(delimiter);
+		nameNormalized = nameNormalized.replace('].[', '][');
+		return nameNormalized;
+	}
+
+	function object2array(obj, lvl)
+	{
+		var result = [], i, name;
+
+		if (arguments.length == 1) lvl = 0;
+
+        if (obj == null)
+        {
+            result = [{ name: "", value: null }];
+        }
+        else if (typeof obj == 'string' || typeof obj == 'number' || typeof obj == 'date' || typeof obj == 'boolean')
+        {
+            result = [
+                { name: "", value : obj }
+            ];
+        }
+        else if (obj instanceof Array)
+        {
+            for (i = 0; i < obj.length; i++)
+            {
+                name = "[" + i + "]";
+                result = result.concat(getSubValues(obj[i], name, lvl + 1));
+            }
+        }
+        else
+        {
+            for (i in obj)
+            {
+                name = i;
+                result = result.concat(getSubValues(obj[i], name, lvl + 1));
+            }
+        }
+
+		return result;
+    }
+
+	function getSubValues(subObj, name, lvl)
+	{
+		var itemName;
+		var result = [], tempResult = object2array(subObj, lvl + 1), i, tempItem;
+
+		for (i = 0; i < tempResult.length; i++)
+		{
+			itemName = name;
+			if (_subArrayRegexp.test(tempResult[i].name))
+			{
+				itemName += tempResult[i].name;
+			}
+			else if (_subObjectRegexp.test(tempResult[i].name))
+			{
+				itemName += '.' + tempResult[i].name;
+			}
+
+			tempItem = { name: itemName, value: tempResult[i].value };
+			result.push(tempItem);
+		}
+
+		return result;
+	}
+
+	return js2form;
+
+})();
+define("js2form", function(){});
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/util/forms',['require','form2js','js2form'],function(require) {
+    require('form2js');
+    require('js2form');
+    return {
+      resetError: function(domain) {
+        return $('input[type=text]', domain).each(function() {
+          return $(this).parents('.control-group').removeClass('error');
+        });
+      },
+      controlError: function(elem, fn) {
+        if (elem && fn(elem.val())) {
+          return elem.parents('.control-group').removeClass('error');
+        } else {
+          return elem.parents('.control-group').addClass('error');
+        }
+      },
+      form2js: function(node, skip) {
+        if (skip == null) {
+          skip = false;
+        }
+        return form2js(node.get(0), '.', skip, true, null, true);
+      },
+      js2form: function(node, obj, shouldClean) {
+        if (shouldClean == null) {
+          shouldClean = true;
+        }
+        return js2form(node.get(0), obj, '.', null, false, shouldClean);
+      },
+      clearForm: function(element) {
+        $('input[type="checkbox"],input[type="radio"]', element).removeAttr('checked');
+        return $('select,input[type="text"],input[type="password"],input[type="hidden"],textarea', element).val('');
+      }
+    };
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/socialButtons',['require','app/fb','plusone','twitter'],function(require) {
+    var fb,
+      _this = this;
+    fb = require('app/fb');
+    require('plusone');
+    require('twitter');
+    return fb.execute(function() {
+      return FB.XFBML.parse();
+    });
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/util/widgets',['require'],function(require) {
+    return {
+      enableButton: function(obj) {
+        if (obj) {
+          return obj.removeClass('disabled').removeAttr('disabled');
+        }
+      },
+      disableButton: function(obj) {
+        if (obj) {
+          return obj.addClass('disabled').attr('disabled', 'disabled');
+        }
+      },
+      resetButtons: function(editArea, origId) {
+        $(editArea).find('input').each(function() {
+          return $(this).removeAttr('checked');
+        });
+        $(editArea).find('div.radio span').each(function() {
+          return $(this).removeClass('checked');
+        });
+        if (origId) {
+          return $('#' + origId).attr('checked', 'checked');
+        }
+      },
+      onButton: function(obj) {
+        if (obj) {
+          obj.removeClass('btn-danger');
+          obj.addClass('btn-success');
+          return obj.text('Click to turn on');
+        }
+      },
+      offButton: function(obj) {
+        if (obj) {
+          obj.removeClass('btn-success');
+          obj.addClass('btn-danger');
+          return obj.text('Click to turn off');
+        }
+      }
+    };
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+
+  define('app/util/valid',[], function() {
+    return {
+      analValid: function(value) {
+        return /\bUA-\d{4,10}-\d{1,4}\b/.test($.trim(value));
+      },
+      numberValid: function(value) {
+        return /^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test($.trim(value));
+      },
+      digitsValid: function(value) {
+        return /^\d+$/.test($.trim(value));
+      },
+      emailValid: function(value) {
+        var val;
+        val = $.trim(value);
+        return /^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))$/i.test(val);
+      },
+      dateValid: function(value) {
+        return /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test($.trim(value));
+      },
+      timeValid: function(value) {
+        return /^\d{1,2}[:]\d{1,2}\s*([aA]|[pP])[mM]$/.test($.trim(value));
+      }
+    };
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+    __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
+
+  define('app/Module',['require'],function(require) {
+    var Module, moduleKeywords;
+    moduleKeywords = ['extended', 'included'];
+    return Module = (function() {
+
+      function Module() {
+        this.extend = __bind(this.extend, this);
+
+      }
+
+      Module.prototype.extend = function(obj) {
+        var key, value, _ref;
+        for (key in obj) {
+          value = obj[key];
+          if (__indexOf.call(moduleKeywords, key) < 0) {
+            this[key] = value;
+          }
+        }
+        if ((_ref = obj.extended) != null) {
+          _ref.apply(this);
+        }
+        return this;
+      };
+
+      return Module;
+
+    })();
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+  define('app/DirtyForm',['require','jquery'],function(require) {
+    var DirtyForm;
+    require('jquery');
+    return DirtyForm = (function() {
+
+      function DirtyForm(options) {
+        this.inputChecker = __bind(this.inputChecker, this);
+
+        var allElse, changeElements, form, inputs,
+          _this = this;
+        this.settings = $.extend({}, options);
+        form = this.settings.form;
+        if (form.hasClass('dirtyform')) {
+          form.off('dirty').off('clean').off('.dirtyform');
+        } else {
+          form.addClass('dirtyform');
+        }
+        inputs = $(':input:not(:submit,:password,:button)', form);
+        changeElements = inputs.filter(':radio,:checkbox,select');
+        form.on('change.dirtyform', ':radio,:checkbox,select', {
+          inputs: changeElements
+        }, this.inputChecker);
+        changeElements.each(function(itr, elem) {
+          var input;
+          input = $(elem);
+          return input.data('initial', _this.getValue(input));
+        });
+        allElse = inputs.not(':radio,:checkbox,select');
+        form.on('keyup.dirtyform', ':input:not(:submit,:password,:button,:radio,:checkbox,select)', {
+          inputs: allElse
+        }, this.inputChecker);
+        allElse.each(function(itr, elem) {
+          var input;
+          input = $(elem);
+          return input.data('initial', _this.getValue(input));
+        });
+        if (this.settings.both) {
+          form.on('clean dirty', this.settings.both);
+        } else {
+          if (this.settings.clean) {
+            form.on('clean', this.settings.clean);
+          }
+          if (this.settings.dirty) {
+            form.on('dirty', this.settings.dirty);
+          }
+        }
+      }
+
+      DirtyForm.prototype.getValue = function(input) {
+        var val;
+        if (input.is(':radio,checkbox')) {
+          val = input.attr('checked');
+          if (val !== void 0) {
+            return val;
+          } else {
+            return false;
+          }
+        } else {
+          return input.val();
+        }
+      };
+
+      DirtyForm.prototype.inputChecker = function(event) {
+        var current, form, initial, inputs, npt, vals;
+        npt = $(event.target);
+        form = npt.parents('.dirtyform');
+        initial = npt.data('initial');
+        current = this.getValue(npt);
+        inputs = event.data.inputs;
+        if (initial !== current) {
+          npt.addClass('changed');
+        } else {
+          npt.removeClass('changed');
+        }
+        this.isDirty = inputs.filter('.changed').length > 0;
+        vals = {
+          from: initial,
+          to: current,
+          target: npt,
+          event: event,
+          isDirty: this.isDirty
+        };
+        if (this.isDirty) {
+          return form.data('dirty', true).trigger('dirty', vals);
+        } else {
+          return form.data('dirty', false).trigger('clean', vals);
+        }
+      };
+
+      return DirtyForm;
+
+    })();
+  });
+
+}).call(this);
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+  define('app/ModalHelper',['require','app/util/widgets','app/util/forms','app/util/keys','app/util/ajax','app/Module','app/DirtyForm','bootstrap-modal/bootstrap-modal','jquery.placeholder'],function(require) {
+    var DirtyForm, ModalHelper, Module, ajax, allFeatures, baseFeature, dirtyFormFeature, forms, keys, multiSubmitButtonFeature, oneSubmitButtonFeature, saveAndCloseOnSuccessFeature, saveAndDoNothingFeature, savingFeature, sendingFeature, simpleSubmitButtonFeature, successFeature, widgets;
+    widgets = require('app/util/widgets');
+    forms = require('app/util/forms');
+    keys = require('app/util/keys');
+    ajax = require('app/util/ajax');
+    Module = require('app/Module');
+    DirtyForm = require('app/DirtyForm');
+    require('bootstrap-modal/bootstrap-modal');
+    require('jquery.placeholder');
+    baseFeature = {
+      _init: function() {
+        this.empty = $('.empty', this.modal);
+        this.disabled = $('.disabled', this.modal);
+        this.hideElements = $('.hide', this.modal);
+        this.showElements = $('.show', this.modal);
+        this.controlGroups = $('.control-group', this.modal);
+        this.introPane = $('.intro', this.modal);
+        this.modal.off('show shown hide hidden').on('show', this, this._show).on('shown', this, this._shown).on('hide', this, this._hide).on('hidden', this, this._hidden);
+        return $('a[data-toggle="tab"]', this.modal).off('show shown').on('show shown', function(e) {
+          return e.stopPropagation();
+        });
+      },
+      _reset: function() {
+        this.empty.each(function(cnt, inst) {
+          var i;
+          i = $(inst);
+          if (i.attr('type') === 'checkbox' || i.attr('type') === 'radio') {
+            return i.removeAttr('checked');
+          } else {
+            return i.val(null);
+          }
+        });
+        this.disabled.each(function(cnt, inst) {
+          return widgets.disableButton($(inst));
+        });
+        this.hideElements.each(function(cnt, inst) {
+          return $(inst).hide();
+        });
+        this.showElements.each(function(cnt, inst) {
+          return $(inst).show();
+        });
+        this.controlGroups.each(function(cnt, inst) {
+          return $(inst).removeClass('error');
+        });
+        return this.reset();
+      },
+      _show: function(e) {
+        var helper;
+        helper = e.data;
+        helper._reset();
+        return helper.show(helper);
+      },
+      _shown: function(e) {
+        var error, helper, modal;
+        helper = e.data;
+        modal = helper.modal;
+        $('input', modal).placeholder();
+        if (!helper.dirtyForm && helper._setupDirtyForm) {
+          helper._setupDirtyForm(helper.dirtyFormBox.eq(0));
+        }
+        helper.shown(helper);
+        error = $('.control-group.error', modal);
+        if (error.length) {
+          return error.first().find('input[type="text"], textarea').focus();
+        } else {
+          return $('input[type="text"], textarea', modal).first().focus();
+        }
+      },
+      _hide: function(e) {
+        return e.data.hide(e.data);
+      },
+      _hidden: function(e) {
+        var helper;
+        helper = e.data;
+        helper.hidden(e.data);
+        return helper._reset();
+      },
+      ajaxPost: function(cfg) {
+        var that;
+        this._ajaxStart();
+        that = this;
+        cfg.success = function(data) {
+          return that._ajaxSuccess(data);
+        };
+        cfg.error = function(data) {
+          return that._ajaxError(data);
+        };
+        return ajax.post(cfg);
+      },
+      populateForm: function(obj) {
+        return forms.js2form(this.dirtyFormBox.eq(0), obj);
+      },
+      cancel: function(show) {
+        var s;
+        s = $('[data-dismiss="modal"]', this.modal);
+        if (show) {
+          return s.show();
+        } else {
+          return s.hide();
+        }
+      },
+      reset: function() {},
+      show: function(helper) {},
+      shown: function(helper) {},
+      hide: function(helper) {},
+      hidden: function(helper) {}
+    };
+    dirtyFormFeature = {
+      _init: function() {
+        return this.dirtyFormBox = $('.dirtyForm', this.modal);
+      },
+      getFormData: function(form) {
+        return forms.form2js(form);
+      },
+      _setupDirtyForm: function(inst) {
+        var that;
+        that = this;
+        if (inst.length === 0) {
+          console.log('MISSING DIRTYFORM CLASS');
+        }
+        return that.dirtyForm = new DirtyForm({
+          form: inst,
+          both: function(event, data) {
+            that.formData = that.getFormData(that.dirtyFormBox);
+            return that._validateForm(data.isDirty, event, data, that.formData);
+          }
+        });
+      },
+      _validateForm: function(dirty, event, data, formData) {
+        return this.isFormValid = this.validateForm(dirty, event, data, formData);
+      },
+      validateSimple: function() {
+        this.formData = this.getFormData(this.dirtyFormBox);
+        if (!this.dirtyForm) {
+          this._setupDirtyForm(this.dirtyFormBox);
+        }
+        this._validateForm(this.dirtyForm.isDirty, null, null, this.formData);
+      },
+      validateForm: function(dirty, event, data, formData) {}
+    };
+    oneSubmitButtonFeature = {
+      _init: function() {
+        var _this = this;
+        this._enableSubmit(false);
+        this.submitButton = $('.submit', this.introPane);
+        return this.submitButton.off('click.modal').on('click.modal', function(e) {
+          e.preventDefault();
+          return _this._submit();
+        });
+      },
+      validateForm: function(dirty, event, data, formData) {
+        if (this.validate(dirty, event, data, formData)) {
+          this._enableSubmit(true);
+          if (data && data.event.which === keys.enter && data.target.hasClass('triggerSubmit')) {
+            return this.submitButton.trigger('click.modal');
+          }
+        } else {
+          return this._enableSubmit(false);
+        }
+      },
+      _submit: function() {
+        this._enableSubmit(false);
+        return this.submit(this.top, this.formData);
+      },
+      _enableSubmit: function(bool) {
+        if (bool) {
+          widgets.enableButton(this.submitButton);
+          return this.enableSubmit(bool);
+        } else {
+          widgets.disableButton(this.submitButton);
+          return this.enableSubmit(bool);
+        }
+      },
+      validate: function(dirty, event, data, formData) {
+        return dirty;
+      },
+      submit: function(top, formData) {},
+      enableSubmit: function(bool) {
+        return bool;
+      }
+    };
+    simpleSubmitButtonFeature = {
+      _init: function() {
+        var _this = this;
+        this._enableSubmit(false);
+        this.submitButton = $('.submit', this.introPane);
+        return this.submitButton.off('click.modal').on('click.modal', function(e) {
+          e.preventDefault();
+          return _this._submit();
+        });
+      },
+      _validate: function(dirty) {
+        if (this.isFormValid && dirty) {
+          return this._enableSubmit(true);
+        } else {
+          return this._enableSubmit(false);
+        }
+      },
+      _submit: function() {
+        this._enableSubmit(false);
+        return this.submit(this.top);
+      },
+      _enableSubmit: function(bool) {
+        if (bool) {
+          return widgets.enableButton(this.submitButton);
+        } else {
+          return widgets.disableButton(this.submitButton);
+        }
+      },
+      submit: function(top) {},
+      validate: function(dirty, formData) {
+        return dirty;
+      },
+      dirty: function(data) {
+        this.isFormValid = this.validate(true, data);
+        return this._validate(true);
+      },
+      clean: function(data) {
+        this.isFormValid = this.validate(false, data);
+        return this._validate(false);
+      }
+    };
+    multiSubmitButtonFeature = {
+      _init: function() {
+        var _this = this;
+        this.dirtyFormBox = $('.dirtyForm', this.modal);
+        this.submitButton = $('.submit', this.introPane);
+        return this.submitButton.off('click.modal').on('click.modal', function(e) {
+          e.preventDefault();
+          widgets.disableButton(_this.submitButton);
+          return _this._submit($(e.currentTarget));
+        });
+      },
+      _submit: function(button) {
+        return this.submit(this.top, forms.form2js(this.dirtyFormBox), button);
+      },
+      submit: function(top, formData, button) {}
+    };
+    successFeature = {
+      _init: function() {
+        return this.successPane = $('.success', this.modal);
+      },
+      _ajaxStart: function() {
+        return this.start();
+      },
+      _ajaxSuccess: function(data) {
+        this.introPane.hide();
+        this.successPane.show();
+        return this.success(this.top, data);
+      },
+      _ajaxError: function(data) {
+        return this.error(this.top, data);
+      },
+      start: function() {},
+      success: function(top, data) {},
+      error: function(top, data) {}
+    };
+    savingFeature = {
+      _init: function() {
+        return this.savingPane = $('.saving', this.modal);
+      },
+      _ajaxStart: function() {
+        this.introPane.hide();
+        this.savingPane.show();
+        return this.start();
+      },
+      _ajaxSuccess: function(data) {
+        this.success(this.top, data);
+        return this.modal.modal('hide');
+      },
+      _ajaxError: function(data) {
+        return this.error(this.top, data);
+      },
+      start: function() {},
+      success: function(top, data) {},
+      error: function(top, data) {}
+    };
+    sendingFeature = {
+      _init: function() {
+        return this.savingPane = $('.sending', this.modal);
+      }
+    };
+    saveAndCloseOnSuccessFeature = {
+      _init: function() {},
+      _ajaxStart: function() {
+        return this.start();
+      },
+      _ajaxSuccess: function(data) {
+        this.success(this.top, data);
+        return this.modal.modal('hide');
+      },
+      _ajaxError: function(data) {
+        return this.error(this.top, data);
+      },
+      start: function() {},
+      success: function(top, data) {},
+      error: function(top, data) {}
+    };
+    saveAndDoNothingFeature = {
+      _init: function() {},
+      _ajaxStart: function() {
+        return this.start();
+      },
+      _ajaxSuccess: function(data) {
+        return this.success(this.top, data);
+      },
+      _ajaxError: function(data) {
+        return this.error(this.top, data);
+      },
+      start: function() {},
+      success: function(top, data) {},
+      error: function(top, data) {}
+    };
+    allFeatures = {
+      base: [baseFeature],
+      dirtyForm: [dirtyFormFeature],
+      simpleSubmitButton: [simpleSubmitButtonFeature],
+      oneSubmitButton: [dirtyFormFeature, oneSubmitButtonFeature],
+      multiSubmitButton: [multiSubmitButtonFeature],
+      success: [successFeature],
+      saveAndClose: [savingFeature],
+      sendAndClose: [savingFeature, sendingFeature],
+      saveWaitAndClose: [saveAndCloseOnSuccessFeature],
+      saveAndDoNothing: [saveAndDoNothingFeature]
+    };
+    return ModalHelper = (function(_super) {
+
+      __extends(ModalHelper, _super);
+
+      function ModalHelper(top, modal, features) {
+        var d, deps, f, _i, _j, _k, _len, _len1, _len2, _ref;
+        this.top = top;
+        this.modal = modal;
+        deps = [allFeatures['base'][0]];
+        if (features) {
+          for (_i = 0, _len = features.length; _i < _len; _i++) {
+            f = features[_i];
+            _ref = allFeatures[f];
+            for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
+              d = _ref[_j];
+              deps.push(d);
+            }
+          }
+        }
+        for (_k = 0, _len2 = deps.length; _k < _len2; _k++) {
+          d = deps[_k];
+          this.extend(d);
+          this._init();
+        }
+      }
+
+      return ModalHelper;
+
+    })(Module);
+  });
+
+}).call(this);
+
+/*
+	Redactor v8.2.0
+	Updated: November 8, 2012
+
+	http://redactorjs.com/
+
+	Copyright (c) 2009-2012, Imperavi Inc.
+	License: http://redactorjs.com/license/
+
+	Usage: $('#content').redactor();
+*/
+
+var rwindow, rdocument;
+
+if (typeof RELANG === 'undefined')
+{
+	var RELANG = {};
+}
+
+var RLANG = {
+	html: 'HTML',
+	video: 'Insert Video',
+	image: 'Insert Image',
+	table: 'Table',
+	link: 'Link',
+	link_insert: 'Insert link',
+	unlink: 'Unlink',
+	formatting: 'Formatting',
+	paragraph: 'Paragraph',
+	quote: 'Quote',
+	code: 'Code',
+	header1: 'Header 1',
+	header2: 'Header 2',
+	header3: 'Header 3',
+	header4: 'Header 4',
+	bold:  'Bold',
+	italic: 'Italic',
+	fontcolor: 'Font Color',
+	backcolor: 'Back Color',
+	unorderedlist: 'Unordered List',
+	orderedlist: 'Ordered List',
+	outdent: 'Outdent',
+	indent: 'Indent',
+	cancel: 'Cancel',
+	insert: 'Insert',
+	save: 'Save',
+	_delete: 'Delete',
+	insert_table: 'Insert Table',
+	insert_row_above: 'Add Row Above',
+	insert_row_below: 'Add Row Below',
+	insert_column_left: 'Add Column Left',
+	insert_column_right: 'Add Column Right',
+	delete_column: 'Delete Column',
+	delete_row: 'Delete Row',
+	delete_table: 'Delete Table',
+	rows: 'Rows',
+	columns: 'Columns',
+	add_head: 'Add Head',
+	delete_head: 'Delete Head',
+	title: 'Title',
+	image_position: 'Position',
+	none: 'None',
+	left: 'Left',
+	right: 'Right',
+	image_web_link: 'Image Web Link',
+	text: 'Text',
+	mailto: 'Email',
+	web: 'URL',
+	video_html_code: 'Video Embed Code',
+	file: 'Insert File',
+	upload: 'Upload',
+	download: 'Download',
+	choose: 'Choose',
+	or_choose: 'Or choose',
+	drop_file_here: 'Drop file here',
+	align_left:	'Align text to the left',
+	align_center: 'Center text',
+	align_right: 'Align text to the right',
+	align_justify: 'Justify text',
+	horizontalrule: 'Insert Horizontal Rule',
+	deleted: 'Deleted',
+	anchor: 'Anchor',
+	link_new_tab: 'Open link in new tab',
+	underline: 'Underline',
+	alignment: 'Alignment'
+};
+
+(function($){
+
+	// Plugin
+	jQuery.fn.redactor = function(option)
+	{
+		return this.each(function()
+		{
+			var $obj = $(this);
+
+			var data = $obj.data('redactor');
+			if (!data)
+			{
+				$obj.data('redactor', (data = new Redactor(this, option)));
+			}
+		});
+	};
+
+
+	// Initialization
+	var Redactor = function(element, options)
+	{
+		// Element
+		this.$el = $(element);
+
+		// Lang
+		if (typeof options !== 'undefined' && typeof options.lang !== 'undefined' && options.lang !== 'en' && typeof RELANG[options.lang] !== 'undefined')
+		{
+			RLANG = RELANG[options.lang];
+		}
+
+		// Options
+		this.opts = $.extend({
+
+			iframe: false,
+			css: false, // url
+
+			lang: 'en',
+			direction: 'ltr', // ltr or rtl
+
+			callback: false, // function
+			keyupCallback: false, // function
+			keydownCallback: false, // function
+			execCommandCallback: false, // function
+
+			plugins: false,
+			cleanup: true,
+
+			focus: false,
+			tabindex: false,
+			autoresize: true,
+			minHeight: false,
+			fixed: false,
+			fixedTop: 0, // pixels
+			fixedBox: false,
+			source: true,
+			shortcuts: true,
+
+			mobile: true,
+			air: false, // true or toolbar
+			wym: false,
+
+			convertLinks: true,
+			convertDivs: true,
+			protocol: 'http://', // for links http or https or ftp or false
+
+			autosave: false, // false or url
+			autosaveCallback: false, // function
+			interval: 60, // seconds
+
+			imageGetJson: false, // url (ex. /folder/images.json ) or false
+
+			imageUpload: false, // url
+			imageUploadCallback: false, // function
+			imageUploadErrorCallback: false, // function
+
+			fileUpload: false, // url
+			fileUploadCallback: false, // function
+			fileUploadErrorCallback: false, // function
+
+			uploadCrossDomain: false,
+			uploadFields: false,
+
+			observeImages: true,
+			overlay: true, // modal overlay
+
+			allowedTags: ["form", "code", "span", "div", "label", "a", "br", "p", "b", "i", "del", "strike", "u",
+					"img", "video", "audio", "iframe", "object", "embed", "param", "blockquote",
+					"mark", "cite", "small", "ul", "ol", "li", "hr", "dl", "dt", "dd", "sup", "sub",
+					"big", "pre", "code", "figure", "figcaption", "strong", "em", "table", "tr", "td",
+					"th", "tbody", "thead", "tfoot", "h1", "h2", "h3", "h4", "h5", "h6"],
+
+			toolbarExternal: false, // ID selector
+
+			buttonsCustom: {},
+			buttonsAdd: [],
+			buttons: ['html', '|', 'formatting', '|', 'bold', 'italic', 'deleted', '|', 'unorderedlist', 'orderedlist', 'outdent', 'indent', '|',
+					'image', 'video', 'file', 'table', 'link', '|',
+					'fontcolor', 'backcolor', '|', 'alignment', '|', 'horizontalrule'], // 'underline', 'alignleft', 'aligncenter', 'alignright', 'justify'
+
+			airButtons: ['formatting', '|', 'bold', 'italic', 'deleted', '|', 'unorderedlist', 'orderedlist', 'outdent', 'indent', '|', 'fontcolor', 'backcolor'],
+
+			formattingTags: ['p', 'blockquote', 'pre', 'h1', 'h2', 'h3', 'h4'],
+
+			activeButtons: ['deleted', 'italic', 'bold', 'underline', 'unorderedlist', 'orderedlist'], // 'alignleft', 'aligncenter', 'alignright', 'justify'
+			activeButtonsStates: {
+				b: 'bold',
+				strong: 'bold',
+				i: 'italic',
+				em: 'italic',
+				del: 'deleted',
+				strike: 'deleted',
+				ul: 'unorderedlist',
+				ol: 'orderedlist',
+				u: 'underline'
+			},
+
+			colors: [
+				'#ffffff', '#000000', '#eeece1', '#1f497d', '#4f81bd', '#c0504d', '#9bbb59', '#8064a2', '#4bacc6', '#f79646', '#ffff00',
+				'#f2f2f2', '#7f7f7f', '#ddd9c3', '#c6d9f0', '#dbe5f1', '#f2dcdb', '#ebf1dd', '#e5e0ec', '#dbeef3', '#fdeada', '#fff2ca',
+				'#d8d8d8', '#595959', '#c4bd97', '#8db3e2', '#b8cce4', '#e5b9b7', '#d7e3bc', '#ccc1d9', '#b7dde8', '#fbd5b5', '#ffe694',
+				'#bfbfbf', '#3f3f3f', '#938953', '#548dd4', '#95b3d7', '#d99694', '#c3d69b', '#b2a2c7', '#b7dde8', '#fac08f', '#f2c314',
+				'#a5a5a5', '#262626', '#494429', '#17365d', '#366092', '#953734', '#76923c', '#5f497a', '#92cddc', '#e36c09', '#c09100',
+				'#7f7f7f', '#0c0c0c', '#1d1b10', '#0f243e', '#244061', '#632423', '#4f6128', '#3f3151', '#31859b', '#974806', '#7f6000'],
+
+			// private
+			emptyHtml: '<p><br /></p>',
+			buffer: false,
+			visual: true,
+
+			// modal windows container
+			modal_file: String() +
+				'<div id="redactor_modal_content">' +
+				'<form id="redactorUploadFileForm" method="post" action="" enctype="multipart/form-data">' +
+					'<label>Name (optional)</label>' +
+					'<input type="text" id="redactor_filename" class="redactor_input" />' +
+					'<div style="margin-top: 7px;">' +
+						'<input type="file" id="redactor_file" name="file" />' +
+					'</div>' +
+				'</form><br>' +
+				'</div>',
+
+			modal_image_edit: String() +
+				'<div id="redactor_modal_content">' +
+				'<label>' + RLANG.title + '</label>' +
+				'<input id="redactor_file_alt" class="redactor_input" />' +
+				'<label>' + RLANG.link + '</label>' +
+				'<input id="redactor_file_link" class="redactor_input" />' +
+				'<label>' + RLANG.image_position + '</label>' +
+				'<select id="redactor_form_image_align">' +
+					'<option value="none">' + RLANG.none + '</option>' +
+					'<option value="left">' + RLANG.left + '</option>' +
+					'<option value="right">' + RLANG.right + '</option>' +
+				'</select>' +
+				'</div>' +
+				'<div id="redactor_modal_footer">' +
+					'<a href="javascript:void(null);" id="redactor_image_delete_btn" class="redactor_modal_btn">' + RLANG._delete + '</a>&nbsp;&nbsp;&nbsp;' +
+					'<a href="javascript:void(null);" class="redactor_modal_btn redactor_btn_modal_close">' + RLANG.cancel + '</a>' +
+					'<input type="button" name="save" class="redactor_modal_btn" id="redactorSaveBtn" value="' + RLANG.save + '" />' +
+				'</div>',
+
+			modal_image: String() +
+				'<div id="redactor_modal_content">' +
+				'<div id="redactor_tabs">' +
+					'<a href="javascript:void(null);" class="redactor_tabs_act">' + RLANG.upload + '</a>' +
+					'<a href="javascript:void(null);">' + RLANG.choose + '</a>' +
+					'<a href="javascript:void(null);">' + RLANG.link + '</a>' +
+				'</div>' +
+				'<form id="redactorInsertImageForm" method="post" action="" enctype="multipart/form-data">' +
+					'<div id="redactor_tab1" class="redactor_tab">' +
+						'<input type="file" id="redactor_file" name="file" />' +
+					'</div>' +
+					'<div id="redactor_tab2" class="redactor_tab" style="display: none;">' +
+						'<div id="redactor_image_box"></div>' +
+					'</div>' +
+				'</form>' +
+				'<div id="redactor_tab3" class="redactor_tab" style="display: none;">' +
+					'<label>' + RLANG.image_web_link + '</label>' +
+					'<input type="text" name="redactor_file_link" id="redactor_file_link" class="redactor_input"  />' +
+				'</div>' +
+				'</div>' +
+				'<div id="redactor_modal_footer">' +
+					'<a href="javascript:void(null);" class="redactor_modal_btn redactor_btn_modal_close">' + RLANG.cancel + '</a>' +
+					'<input type="button" name="upload" class="redactor_modal_btn" id="redactor_upload_btn" value="' + RLANG.insert + '" />' +
+				'</div>',
+
+			modal_link: String() +
+				'<div id="redactor_modal_content">' +
+				'<form id="redactorInsertLinkForm" method="post" action="">' +
+					'<div id="redactor_tabs">' +
+						'<a href="javascript:void(null);" class="redactor_tabs_act">URL</a>' +
+						'<a href="javascript:void(null);">Email</a>' +
+						'<a href="javascript:void(null);">' + RLANG.anchor + '</a>' +
+					'</div>' +
+					'<input type="hidden" id="redactor_tab_selected" value="1" />' +
+					'<div class="redactor_tab" id="redactor_tab1">' +
+						'<label>URL</label><input type="text" id="redactor_link_url" class="redactor_input"  />' +
+						'<label>' + RLANG.text + '</label><input type="text" class="redactor_input redactor_link_text" id="redactor_link_url_text" />' +
+						'<label><input type="checkbox" id="redactor_link_blank"> ' + RLANG.link_new_tab + '</label>' +
+					'</div>' +
+					'<div class="redactor_tab" id="redactor_tab2" style="display: none;">' +
+						'<label>Email</label><input type="text" id="redactor_link_mailto" class="redactor_input" />' +
+						'<label>' + RLANG.text + '</label><input type="text" class="redactor_input redactor_link_text" id="redactor_link_mailto_text" />' +
+					'</div>' +
+					'<div class="redactor_tab" id="redactor_tab3" style="display: none;">' +
+						'<label>' + RLANG.anchor + '</label><input type="text" class="redactor_input" id="redactor_link_anchor"  />' +
+						'<label>' + RLANG.text + '</label><input type="text" class="redactor_input redactor_link_text" id="redactor_link_anchor_text" />' +
+					'</div>' +
+				'</form>' +
+				'</div>' +
+				'<div id="redactor_modal_footer">' +
+					'<a href="javascript:void(null);" class="redactor_modal_btn redactor_btn_modal_close">' + RLANG.cancel + '</a>' +
+					'<input type="button" class="redactor_modal_btn" id="redactor_insert_link_btn" value="' + RLANG.insert + '" />' +
+				'</div>',
+
+			modal_table: String() +
+				'<div id="redactor_modal_content">' +
+					'<label>' + RLANG.rows + '</label>' +
+					'<input type="text" size="5" value="2" id="redactor_table_rows" />' +
+					'<label>' + RLANG.columns + '</label>' +
+					'<input type="text" size="5" value="3" id="redactor_table_columns" />' +
+				'</div>' +
+				'<div id="redactor_modal_footer">' +
+					'<a href="javascript:void(null);" class="redactor_modal_btn redactor_btn_modal_close">' + RLANG.cancel + '</a>' +
+					'<input type="button" name="upload" class="redactor_modal_btn" id="redactor_insert_table_btn" value="' + RLANG.insert + '" />' +
+				'</div>',
+
+			modal_video: String() +
+				'<div id="redactor_modal_content">' +
+				'<form id="redactorInsertVideoForm">' +
+					'<label>' + RLANG.video_html_code + '</label>' +
+					'<textarea id="redactor_insert_video_area" style="width: 99%; height: 160px;"></textarea>' +
+				'</form>' +
+				'</div>'+
+				'<div id="redactor_modal_footer">' +
+					'<a href="javascript:void(null);" class="redactor_modal_btn redactor_btn_modal_close">' + RLANG.cancel + '</a>' +
+					'<input type="button" class="redactor_modal_btn" id="redactor_insert_video_btn" value="' + RLANG.insert + '" />' +
+				'</div>',
+
+			toolbar: {
+				html:
+				{
+					title: RLANG.html,
+					func: 'toggle'
+				},
+				formatting:
+				{
+					title: RLANG.formatting,
+					func: 'show',
+					dropdown:
+					{
+						p:
+						{
+							title: RLANG.paragraph,
+							exec: 'formatblock'
+						},
+						blockquote:
+						{
+							title: RLANG.quote,
+							exec: 'formatblock',
+							className: 'redactor_format_blockquote'
+						},
+						pre:
+						{
+							title: RLANG.code,
+							exec: 'formatblock',
+							className: 'redactor_format_pre'
+						},
+						h1:
+						{
+							title: RLANG.header1,
+							exec: 'formatblock',
+							className: 'redactor_format_h1'
+						},
+						h2:
+						{
+							title: RLANG.header2,
+							exec: 'formatblock',
+							className: 'redactor_format_h2'
+						},
+						h3:
+						{
+							title: RLANG.header3,
+							exec: 'formatblock',
+							className: 'redactor_format_h3'
+						},
+						h4:
+						{
+							title: RLANG.header4,
+							exec: 'formatblock',
+							className: 'redactor_format_h4'
+						}
+					}
+				},
+				bold:
+				{
+					title: RLANG.bold,
+					exec: 'bold'
+				},
+				italic:
+				{
+					title: RLANG.italic,
+					exec: 'italic'
+				},
+				deleted:
+				{
+					title: RLANG.deleted,
+					exec: 'strikethrough'
+				},
+				underline:
+				{
+					title: RLANG.underline,
+					exec: 'underline'
+				},
+				unorderedlist:
+				{
+					title: '&bull; ' + RLANG.unorderedlist,
+					exec: 'insertunorderedlist'
+				},
+				orderedlist:
+				{
+					title: '1. ' + RLANG.orderedlist,
+					exec: 'insertorderedlist'
+				},
+				outdent:
+				{
+					title: '< ' + RLANG.outdent,
+					exec: 'outdent'
+				},
+				indent:
+				{
+					title: '> ' + RLANG.indent,
+					exec: 'indent'
+				},
+				image:
+				{
+					title: RLANG.image,
+					func: 'showImage'
+				},
+				video:
+				{
+					title: RLANG.video,
+					func: 'showVideo'
+				},
+				file:
+				{
+					title: RLANG.file,
+					func: 'showFile'
+				},
+				table:
+				{
+					title: RLANG.table,
+					func: 'show',
+					dropdown:
+					{
+						insert_table:
+						{
+							title: RLANG.insert_table,
+							func: 'showTable'
+						},
+						separator_drop1:
+						{
+							name: 'separator'
+						},
+						insert_row_above:
+						{
+							title: RLANG.insert_row_above,
+							func: 'insertRowAbove'
+						},
+						insert_row_below:
+						{
+							title: RLANG.insert_row_below,
+							func: 'insertRowBelow'
+						},
+						insert_column_left:
+						{
+							title: RLANG.insert_column_left,
+							func: 'insertColumnLeft'
+						},
+						insert_column_right:
+						{
+							title: RLANG.insert_column_right,
+							func: 'insertColumnRight'
+						},
+						separator_drop2:
+						{
+							name: 'separator'
+						},
+						add_head:
+						{
+							title: RLANG.add_head,
+							func: 'addHead'
+						},
+						delete_head:
+						{
+							title: RLANG.delete_head,
+							func: 'deleteHead'
+						},
+						separator_drop3:
+						{
+							name: 'separator'
+						},
+						delete_column:
+						{
+							title: RLANG.delete_column,
+							func: 'deleteColumn'
+						},
+						delete_row:
+						{
+							title: RLANG.delete_row,
+							func: 'deleteRow'
+						},
+						delete_table:
+						{
+							title: RLANG.delete_table,
+							func: 'deleteTable'
+						}
+					}
+				},
+				link:
+				{
+					title: RLANG.link,
+					func: 'show',
+					dropdown:
+					{
+						link:
+						{
+							title: RLANG.link_insert,
+							func: 'showLink'
+						},
+						unlink:
+						{
+							title: RLANG.unlink,
+							exec: 'unlink'
+						}
+					}
+				},
+				fontcolor:
+				{
+					title: RLANG.fontcolor,
+					func: 'show'
+				},
+				backcolor:
+				{
+					title: RLANG.backcolor,
+					func: 'show'
+				},
+				alignment:
+				{
+					title: RLANG.alignment,
+					func: 'show',
+					dropdown:
+					{
+						alignleft:
+						{
+							title: RLANG.align_left,
+							exec: 'JustifyLeft'
+						},
+						aligncenter:
+						{
+							title: RLANG.align_center,
+							exec: 'JustifyCenter'
+						},
+						alignright:
+						{
+							title: RLANG.align_right,
+							exec: 'JustifyRight'
+						},
+						justify:
+						{
+							title: RLANG.align_justify,
+							exec: 'JustifyFull'
+						}
+					}
+				},
+				alignleft:
+				{
+					exec: 'JustifyLeft',
+					title: RLANG.align_left
+				},
+				aligncenter:
+				{
+					exec: 'JustifyCenter',
+					title: RLANG.align_center
+				},
+				alignright:
+				{
+					exec: 'JustifyRight',
+					title: RLANG.align_right
+				},
+				justify:
+				{
+					exec: 'JustifyFull',
+					title: RLANG.align_justify
+				},
+				horizontalrule:
+				{
+					exec: 'inserthorizontalrule',
+					title: RLANG.horizontalrule
+				}
+			}
+
+
+		}, options, this.$el.data());
+
+		this.dropdowns = [];
+
+		// Init
+		this.init();
+	};
+
+	// Functionality
+	Redactor.prototype = {
+
+
+		// Initialization
+		init: function()
+		{
+			// get dimensions
+			this.height = this.$el.css('height');
+			this.width = this.$el.css('width');
+
+			rdocument = this.document = document;
+			rwindow = this.window = window;
+
+			// mobile
+			if (this.opts.mobile === false && this.isMobile())
+			{
+				this.build(true);
+				return false;
+			}
+
+			// iframe
+			if (this.opts.iframe)
+			{
+				this.opts.autoresize = false;
+			}
+
+			// extend buttons
+			if (this.opts.air)
+			{
+				this.opts.buttons = this.opts.airButtons;
+			}
+			else if (this.opts.toolbar !== false)
+			{
+				if (this.opts.source === false)
+				{
+					var index = this.opts.buttons.indexOf('html');
+					var next = this.opts.buttons[index+1];
+					this.opts.buttons.splice(index, 1);
+					if (typeof next !== 'undefined' && next === '|')
+					{
+						this.opts.buttons.splice(index, 1);
+					}
+				}
+
+				$.extend(this.opts.toolbar, this.opts.buttonsCustom);
+				$.each(this.opts.buttonsAdd, $.proxy(function(i,s)
+				{
+					this.opts.buttons.push(s);
+
+				}, this));
+			}
+
+			// formatting tags
+			if (this.opts.toolbar !== false)
+			{
+				$.each(this.opts.toolbar.formatting.dropdown, $.proxy(function(i,s)
+				{
+					if ($.inArray(i, this.opts.formattingTags) == '-1')
+					{
+						delete this.opts.toolbar.formatting.dropdown[i];
+					}
+
+				}, this));
+			}
+
+			function afterBuild()
+			{
+	      		// air enable
+				this.enableAir();
+
+				// toolbar
+				this.buildToolbar();
+
+				// PLUGINS
+				if (typeof this.opts.plugins === 'object')
+				{
+					$.each(this.opts.plugins, $.proxy(function(i,s)
+					{
+						if (typeof RedactorPlugins[s] !== 'undefined')
+						{
+							$.extend(this, RedactorPlugins[s]);
+
+							if (typeof RedactorPlugins[s].init !== 'undefined')
+							{
+								this.init();
+							}
+						}
+
+					}, this));
+				}
+
+				// buttons response
+				if (this.opts.activeButtons !== false && this.opts.toolbar !== false)
+				{
+					var observeFormatting = $.proxy(function() { this.observeFormatting(); }, this);
+					this.$editor.click(observeFormatting).keyup(observeFormatting);
+				}
+
+				// paste
+				var oldsafari = false;
+				if ($.browser.webkit && navigator.userAgent.indexOf('Chrome') === -1)
+				{
+					var arr = $.browser.version.split('.');
+					if (arr[0] < 536) oldsafari = true;
+				}
+
+				if (this.isMobile(true) === false && oldsafari === false)
+				{
+					this.$editor.bind('paste', $.proxy(function(e)
+					{
+						if (this.opts.cleanup === false)
+						{
+							return true;
+						}
+
+						this.pasteRunning = true;
+
+						this.setBuffer();
+
+						if (this.opts.autoresize === true)
+						{
+							this.saveScroll = this.document.body.scrollTop;
+						}
+						else
+						{
+							this.saveScroll = this.$editor.scrollTop();
+						}
+
+						var frag = this.extractContent();
+
+						setTimeout($.proxy(function()
+						{
+							var pastedFrag = this.extractContent();
+							this.$editor.append(frag);
+
+							this.restoreSelection();
+
+							var html = this.getFragmentHtml(pastedFrag);
+							this.pasteCleanUp(html);
+							this.pasteRunning = false;
+
+						}, this), 1);
+
+					}, this));
+				}
+
+				// key handlers
+				this.keyup();
+				this.keydown();
+
+				// autosave
+				if (this.opts.autosave !== false)
+				{
+					this.autoSave();
+				}
+
+				// observers
+				this.observeImages();
+				this.observeTables();
+
+				// FF fix
+				if ($.browser.mozilla)
+				{
+					this.$editor.click($.proxy(function()
+					{
+						this.saveSelection();
+					}, this));
+
+					try
+					{
+						this.document.execCommand('enableObjectResizing', false, false);
+						this.document.execCommand('enableInlineTableEditing', false, false);
+					}
+					catch (e) {}
+				}
+
+				// focus
+				if (this.opts.focus)
+				{
+					setTimeout($.proxy(function(){
+						this.$editor.focus();
+					}, this), 1);
+				}
+
+				// fixed
+				if (this.opts.fixed)
+				{
+					this.observeScroll();
+					$(document).scroll($.proxy(this.observeScroll, this));
+				}
+
+				// callback
+				if (typeof this.opts.callback === 'function')
+				{
+					this.opts.callback(this);
+				}
+
+				if (this.opts.toolbar !== false)
+				{
+					this.$toolbar.find('a').attr('tabindex', '-1');
+				}
+			}
+
+			// construct editor
+		    this.build(false, afterBuild);
+
+		},
+		shortcuts: function(e, cmd)
+		{
+			e.preventDefault();
+			this.execCommand(cmd, false);
+		},
+		keyup: function()
+		{
+			this.$editor.keyup($.proxy(function(e)
+			{
+				var key = e.keyCode || e.which;
+
+				if ($.browser.mozilla && !this.pasteRunning)
+				{
+					this.saveSelection();
+				}
+
+				// callback as you type
+				if (typeof this.opts.keyupCallback === 'function')
+				{
+					this.opts.keyupCallback(this, e);
+				}
+
+				// if empty
+				if (key === 8 || key === 46)
+				{
+					this.observeImages();
+					return this.formatEmpty(e);
+				}
+
+				// new line p
+				if (key === 13 && !e.shiftKey && !e.ctrlKey && !e.metaKey)
+				{
+					if ($.browser.webkit)
+					{
+						this.formatNewLine(e);
+					}
+
+					// convert links
+					if (this.opts.convertLinks)
+					{
+						this.$editor.linkify();
+					}
+				}
+
+				this.syncCode();
+
+			}, this));
+		},
+		keydown: function()
+		{
+			this.$editor.keydown($.proxy(function(e)
+			{
+				var key = e.keyCode || e.which;
+				var parent = this.getParentNode();
+				var current = this.getCurrentNode();
+				var pre = false;
+				var ctrl = e.ctrlKey || e.metaKey;
+
+				if ((parent || current) && ($(parent).get(0).tagName === 'PRE' || $(current).get(0).tagName === 'PRE'))
+				{
+					pre = true;
+				}
+
+				// callback keydown
+				if (typeof this.opts.keydownCallback === 'function')
+				{
+					this.opts.keydownCallback(this, e);
+				}
+
+				if (ctrl && this.opts.shortcuts)
+				{
+					if (key === 90)
+					{
+						if (this.opts.buffer !== false)
+						{
+							e.preventDefault();
+							this.getBuffer();
+						}
+						else if (e.shiftKey)
+						{
+							this.shortcuts(e, 'redo');	// Ctrl + Shift + z
+						}
+						else
+						{
+							this.shortcuts(e, 'undo'); // Ctrl + z
+						}
+					}
+					else if (key === 77)
+					{
+						this.shortcuts(e, 'removeFormat'); // Ctrl + m
+					}
+					else if (key === 66)
+					{
+						this.shortcuts(e, 'bold'); // Ctrl + b
+					}
+					else if (key === 73)
+					{
+						this.shortcuts(e, 'italic'); // Ctrl + i
+					}
+					else if (key === 74)
+					{
+						this.shortcuts(e, 'insertunorderedlist'); // Ctrl + j
+					}
+					else if (key === 75)
+					{
+						this.shortcuts(e, 'insertorderedlist'); // Ctrl + k
+					}
+					else if (key === 76)
+					{
+						this.shortcuts(e, 'superscript'); // Ctrl + l
+					}
+					else if (key === 72)
+					{
+						this.shortcuts(e, 'subscript'); // Ctrl + h
+					}
+				}
+
+				// clear undo buffer
+				if (!ctrl && key !== 90)
+				{
+					this.opts.buffer = false;
+				}
+
+				// enter
+				if (pre === true && key === 13)
+				{
+					e.preventDefault();
+
+					var html = $(current).parent().text();
+					this.insertNodeAtCaret(this.document.createTextNode('\r\n'));
+					if (html.search(/\s$/) == -1)
+					{
+						this.insertNodeAtCaret(this.document.createTextNode('\r\n'));
+					}
+					this.syncCode();
+
+					return false;
+				}
+
+				// tab
+				if (this.opts.shortcuts && !e.shiftKey && key === 9)
+				{
+					if (pre === false)
+					{
+						this.shortcuts(e, 'indent'); // Tab
+					}
+					else
+					{
+						e.preventDefault();
+						this.insertNodeAtCaret(this.document.createTextNode('\t'));
+						this.syncCode();
+						return false;
+					}
+				}
+				else if (this.opts.shortcuts && e.shiftKey && key === 9 )
+				{
+					this.shortcuts(e, 'outdent'); // Shift + tab
+				}
+
+				// safari shift key + enter
+				if ($.browser.webkit && navigator.userAgent.indexOf('Chrome') === -1)
+				{
+					return this.safariShiftKeyEnter(e, key);
+				}
+			}, this));
+		},
+		build: function(mobile, whendone)
+		{
+			if (mobile !== true)
+			{
+				// container
+				this.$box = $('<div class="redactor_box"></div>');
+
+				// air box
+				if (this.opts.air)
+				{
+					this.air = $('<div class="redactor_air" style="display: none;"></div>');
+				}
+
+				this.$content = null;
+
+				function initFrame()
+				{
+					this.$editor = this.$content.contents().find("body").attr('contenteditable', true).attr('dir', this.opts.direction);
+
+					rdocument = this.document = this.$editor[0].ownerDocument;
+					rwindow = this.window = this.document.defaultView || window;
+
+					if (this.opts.css !== false)
+					{
+						this.$content.contents().find('head').append('<link rel="stylesheet" href="' + this.opts.css + '" />');
+					}
+
+					this.$editor.html(html);
+
+					if (whendone)
+					{
+						whendone.call(this);
+						whendone = null;
+					}
+				}
+
+				// editor
+				this.textareamode = true;
+				if (this.$el.get(0).tagName === 'TEXTAREA')
+				{
+					if(this.opts.iframe)
+					{
+						var me = this;
+						this.$content = $('<iframe style="width: 100%;" frameborder="0"></iframe>').load(function()
+						{
+							initFrame.call(me);
+						});
+					}
+					else
+					{
+						 this.$content = this.$editor = $('<div></div>');
+					}
+
+					var classlist = this.$el.get(0).className.split(/\s+/);
+					$.each(classlist, $.proxy(function(i,s)
+					{
+						this.$content.addClass('redactor_' + s);
+					}, this));
+				}
+				else
+				{
+					this.textareamode = false;
+					this.$content = this.$editor = this.$el;
+					this.$el = $('<textarea name="' + this.$editor.attr('id') + '"></textarea>').css('height', this.height);
+				}
+
+				if (this.$editor)
+				{
+					this.$editor.addClass('redactor_editor').attr('contenteditable', true).attr('dir', this.opts.direction);
+				}
+
+				if (this.opts.tabindex !== false)
+				{
+					this.$content.attr('tabindex', this.opts.tabindex);
+				}
+
+				if (this.opts.minHeight !== false)
+				{
+					this.$content.css('min-height', this.opts.minHeight + 'px');
+				}
+
+				if (this.opts.wym === true)
+				{
+					this.$content.addClass('redactor_editor_wym');
+				}
+
+				if (this.opts.autoresize === false)
+				{
+					this.$content.css('height', this.height);
+				}
+
+				// hide textarea
+				this.$el.hide();
+
+				// append box and frame
+				var html = '';
+				if (this.textareamode)
+				{
+					// get html
+					html = this.$el.val();
+					html = this.savePreCode(html);
+
+					this.$box.insertAfter(this.$el).append(this.$content).append(this.$el);
+				}
+				else
+				{
+					// get html
+					html = this.$editor.html();
+					html = this.savePreCode(html);
+
+					this.$box.insertAfter(this.$content).append(this.$el).append(this.$editor);
+
+				}
+
+				// conver newlines to p
+				html = this.paragraphy(html);
+
+				// enable
+				if (this.$editor)
+				{
+					this.$editor.html(html);
+				}
+
+				if (this.textareamode === false)
+				{
+					this.syncCode();
+				}
+			}
+			else
+			{
+				if (this.$el.get(0).tagName !== 'TEXTAREA')
+				{
+					var html = this.$el.val();
+					var textarea = $('<textarea name="' + this.$editor.attr('id') + '"></textarea>').css('height', this.height).val(html);
+					this.$el.hide();
+					this.$el.after(textarea);
+				}
+			}
+
+			if (whendone && this.$editor)
+			{
+				whendone.call(this);
+			}
+
+		},
+		enableAir: function()
+		{
+			if (this.opts.air === false)
+			{
+				return false;
+			}
+
+			this.air.hide();
+
+			this.$editor.bind('textselect', $.proxy(function(e)
+			{
+				this.showAir(e);
+
+			}, this));
+
+			this.$editor.bind('textunselect', $.proxy(function()
+			{
+				this.air.hide();
+
+			}, this));
+
+		},
+		showAir: function(e)
+		{
+			$('.redactor_air').hide();
+
+			var width = this.air.innerWidth();
+			var left = e.clientX;
+
+			if ($(this.document).width() < (left + width))
+			{
+				left = left - width;
+			}
+
+			var top = e.clientY + $(document).scrollTop() + 14;
+			if (this.opts.iframe === true)
+			{
+				top = top + this.$box.position().top;
+				left = left + this.$box.position().left;
+			}
+
+			this.air.css({ left: left + 'px', top: top + 'px' }).show();
+		},
+		syncCode: function()
+		{
+			this.$el.val(this.$editor.html());
+		},
+
+		// API functions
+		setCode: function(html)
+		{
+			html = this.stripTags(html);
+			this.$editor.html(html).focus();
+
+			this.syncCode();
+		},
+		getCode: function()
+		{
+			var html = '';
+			if (this.opts.visual)
+			{
+				html = this.$editor.html()
+			}
+			else
+			{
+				html = this.$el.val();
+			}
+
+			return this.stripTags(html);
+		},
+		insertHtml: function(html)
+		{
+			this.$editor.focus();
+			this.pasteHtmlAtCaret(html);
+			this.observeImages();
+			this.syncCode();
+		},
+
+		pasteHtmlAtCaret: function (html)
+		{
+			var sel, range;
+			if (this.document.getSelection)
+			{
+				sel = this.window.getSelection();
+				if (sel.getRangeAt && sel.rangeCount)
+				{
+					range = sel.getRangeAt(0);
+					range.deleteContents();
+					var el = this.document.createElement("div");
+					el.innerHTML = html;
+					var frag = this.document.createDocumentFragment(), node, lastNode;
+					while (node = el.firstChild)
+					{
+						lastNode = frag.appendChild(node);
+					}
+					range.insertNode(frag);
+
+					if (lastNode)
+					{
+						range = range.cloneRange();
+						range.setStartAfter(lastNode);
+						range.collapse(true);
+						sel.removeAllRanges();
+						sel.addRange(range);
+					}
+				}
+			}
+			else if (this.document.selection && this.document.selection.type != "Control")
+			{
+				this.document.selection.createRange().pasteHTML(html);
+			}
+		},
+
+		destroy: function()
+		{
+			var html = this.getCode();
+
+			if (this.textareamode)
+			{
+				this.$box.after(this.$el);
+				this.$box.remove();
+				this.$el.height(this.height).val(html).show();
+			}
+			else
+			{
+				this.$box.after(this.$editor);
+				this.$box.remove();
+				this.$editor.removeClass('redactor_editor').removeClass('redactor_editor_wym').attr('contenteditable', false).html(html).show();
+			}
+
+			if (this.opts.toolbarExternal)
+			{
+				$(this.opts.toolbarExternal).empty();
+			}
+
+			$('.redactor_air').remove();
+
+			for (var i = 0; i < this.dropdowns.length; i++)
+			{
+				this.dropdowns[i].remove();
+				delete(this.dropdowns[i]);
+			}
+
+			if (this.opts.autosave !== false)
+			{
+				clearInterval(this.autosaveInterval);
+			}
+
+		},
+		// end API functions
+
+		// OBSERVERS
+		observeFormatting: function()
+		{
+			var parent = this.getCurrentNode();
+
+			this.inactiveAllButtons();
+
+			$.each(this.opts.activeButtonsStates, $.proxy(function(i,s)
+			{
+				if ($(parent).closest(i,this.$editor.get()[0]).length != 0)
+				{
+					this.setBtnActive(s);
+				}
+
+			}, this));
+
+			var tag = $(parent).closest(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'td']);
+
+			if (typeof tag[0] !== 'undefined' && typeof tag[0].elem !== 'undefined' && $(tag[0].elem).size() != 0)
+			{
+				var align = $(tag[0].elem).css('text-align');
+
+				switch (align)
+				{
+					case 'right':
+						this.setBtnActive('alignright');
+					break;
+					case 'center':
+						this.setBtnActive('aligncenter');
+					break;
+					case 'justify':
+						this.setBtnActive('justify');
+					break;
+					default:
+						this.setBtnActive('alignleft');
+					break;
+				}
+			}
+		},
+		observeImages: function()
+		{
+			if (this.opts.observeImages === false)
+			{
+				return false;
+			}
+
+			this.$editor.find('img').each($.proxy(function(i,s)
+			{
+				if ($.browser.msie)
+				{
+					$(s).attr('unselectable', 'on');
+				}
+
+				this.resizeImage(s);
+
+			}, this));
+
+		},
+		observeTables: function()
+		{
+			this.$editor.find('table').click($.proxy(this.tableObserver, this));
+		},
+		observeScroll: function()
+		{
+			var scrolltop = $(this.document).scrollTop();
+			var boxtop = this.$box.offset().top;
+			var left = 0;
+
+			if (scrolltop > boxtop)
+			{
+				var width = '100%';
+				if (this.opts.fixedBox)
+				{
+					left = this.$box.offset().left;
+					width = this.$box.innerWidth();
+				}
+
+				this.fixed = true;
+				this.$toolbar.css({ position: 'fixed', width: width, zIndex: 1005, top: this.opts.fixedTop + 'px', left: left });
+			}
+			else
+			{
+				this.fixed = false;
+				this.$toolbar.css({ position: 'relative', width: 'auto', zIndex: 1, top: 0, left: left });
+			}
+		},
+
+		// BUFFER
+		setBuffer: function()
+		{
+			this.saveSelection();
+			this.opts.buffer = this.$editor.html();
+		},
+		getBuffer: function()
+		{
+			if (this.opts.buffer === false)
+			{
+				return false;
+			}
+
+			this.$editor.html(this.opts.buffer);
+
+			if (!$.browser.msie)
+			{
+				this.restoreSelection();
+			}
+
+			this.opts.buffer = false;
+		},
+
+
+
+		// EXECCOMMAND
+		execCommand: function(cmd, param)
+		{
+			if (this.opts.visual == false)
+			{
+				this.$el.focus();
+				return false;
+			}
+
+			try
+			{
+
+				var parent;
+
+				if (cmd === 'inserthtml')
+				{
+					if ($.browser.msie)
+					{
+						this.$editor.focus();
+						this.document.selection.createRange().pasteHTML(param);
+					}
+					else
+					{
+						this.pasteHtmlAtCaret(param);
+						//this.execRun(cmd, param);
+					}
+
+					this.observeImages();
+				}
+				else if (cmd === 'unlink')
+				{
+					parent = this.getParentNode();
+					if ($(parent).get(0).tagName === 'A')
+					{
+						$(parent).replaceWith($(parent).text());
+					}
+					else
+					{
+						this.execRun(cmd, param);
+					}
+				}
+				else if (cmd === 'JustifyLeft' || cmd === 'JustifyCenter' || cmd === 'JustifyRight' || cmd === 'JustifyFull')
+				{
+					parent = this.getCurrentNode();
+					var tag = $(parent).get(0).tagName;
+
+					if (this.opts.iframe === false && $(parent).parents('.redactor_editor').size() == 0)
+					{
+						return false;
+					}
+
+					var tagsArray = ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'TD'];
+					if ($.inArray(tag, tagsArray) != -1)
+					{
+						var align = false;
+
+						if (cmd === 'JustifyCenter')
+						{
+							align = 'center';
+						}
+						else if (cmd === 'JustifyRight')
+						{
+							align = 'right';
+						}
+						else if (cmd === 'JustifyFull')
+						{
+							align = 'justify';
+						}
+
+						if (align === false)
+						{
+							$(parent).css('text-align', '');
+						}
+						else
+						{
+							$(parent).css('text-align', align);
+						}
+					}
+					else
+					{
+						this.execRun(cmd, param);
+					}
+				}
+				else if (cmd === 'formatblock' && param === 'blockquote')
+				{
+					parent = this.getCurrentNode();
+					if ($(parent).get(0).tagName === 'BLOCKQUOTE')
+					{
+						if ($.browser.msie)
+						{
+							var node = $('<p>' + $(parent).html() + '</p>');
+							$(parent).replaceWith(node);
+						}
+						else
+						{
+							this.execRun(cmd, 'p');
+						}
+					}
+					else if ($(parent).get(0).tagName === 'P')
+					{
+						var parent2 = $(parent).parent();
+						if ($(parent2).get(0).tagName === 'BLOCKQUOTE')
+						{
+							var node = $('<p>' + $(parent).html() + '</p>');
+							$(parent2).replaceWith(node);
+							this.setSelection(node[0], 0, node[0], 0);
+						}
+						else
+						{
+							if ($.browser.msie)
+							{
+								var node = $('<blockquote>' + $(parent).html() + '</blockquote>');
+								$(parent).replaceWith(node);
+							}
+							else
+							{
+								this.execRun(cmd, param);
+							}
+						}
+					}
+					else
+					{
+						this.execRun(cmd, param);
+					}
+				}
+				else if (cmd === 'formatblock' && (param === 'pre' || param === 'p'))
+				{
+					parent = this.getParentNode();
+
+					if ($(parent).get(0).tagName === 'PRE')
+					{
+						$(parent).replaceWith('<p>' +  this.encodeEntities($(parent).text()) + '</p>');
+					}
+					else
+					{
+						this.execRun(cmd, param);
+					}
+				}
+				else
+				{
+					if (cmd === 'inserthorizontalrule' && $.browser.msie)
+					{
+						this.$editor.focus();
+					}
+
+					if (cmd === 'formatblock' && $.browser.mozilla)
+					{
+						this.$editor.focus();
+					}
+
+					this.execRun(cmd, param);
+				}
+
+				if (cmd === 'inserthorizontalrule')
+				{
+					this.$editor.find('hr').removeAttr('id');
+				}
+
+				this.syncCode();
+
+				if (this.oldIE())
+				{
+					this.$editor.focus();
+				}
+
+				if (typeof this.opts.execCommandCallback === 'function')
+				{
+					this.opts.execCommandCallback(this, cmd);
+				}
+
+				if (this.opts.air)
+				{
+					this.air.hide();
+				}
+			}
+			catch (e) { }
+		},
+		execRun: function(cmd, param)
+		{
+			if (cmd === 'formatblock' && $.browser.msie)
+			{
+				param = '<' + param + '>';
+			}
+
+			this.document.execCommand(cmd, false, param);
+		},
+
+		// FORMAT NEW LINE
+		formatNewLine: function(e)
+		{
+			var parent = this.getParentNode();
+
+			if (parent.nodeName === 'DIV' && parent.className === 'redactor_editor')
+			{
+				var element = $(this.getCurrentNode());
+
+				if (element.get(0).tagName === 'DIV' && (element.html() === '' || element.html() === '<br>'))
+				{
+					var newElement = $('<p>').append(element.clone().get(0).childNodes);
+					element.replaceWith(newElement);
+					newElement.html('<br />');
+					this.setSelection(newElement[0], 0, newElement[0], 0);
+				}
+			}
+		},
+
+		// SAFARI SHIFT KEY + ENTER
+		safariShiftKeyEnter: function(e, key)
+		{
+			if (e.shiftKey && key === 13)
+			{
+				e.preventDefault();
+				this.insertNodeAtCaret($('<span><br /></span>').get(0));
+				this.syncCode();
+				return false;
+			}
+			else
+			{
+				return true;
+			}
+		},
+
+		// FORMAT EMPTY
+		formatEmpty: function(e)
+		{
+			var html = $.trim(this.$editor.html());
+
+			if ($.browser.mozilla)
+			{
+				html = html.replace(/<br>/i, '');
+			}
+
+			var thtml = html.replace(/<(?:.|\n)*?>/gm, '');
+
+			if (html === '' || thtml === '')
+			{
+				e.preventDefault();
+
+				var node = $(this.opts.emptyHtml).get(0);
+				this.$editor.html(node);
+				this.setSelection(node, 0, node, 0);
+
+				this.syncCode();
+				return false;
+			}
+			else
+			{
+				this.syncCode();
+			}
+		},
+
+		// PARAGRAPHY
+		paragraphy: function (str)
+		{
+			str = $.trim(str);
+			if (str === '' || str === '<p></p>')
+			{
+				return this.opts.emptyHtml;
+			}
+
+			// convert div to p
+			if (this.opts.convertDivs)
+			{
+				str = str.replace(/<div(.*?)>([\w\W]*?)<\/div>/gi, '<p>$2</p>');
+			}
+
+			// inner functions
+			var X = function(x, a, b) { return x.replace(new RegExp(a, 'g'), b); };
+			var R = function(a, b) { return X(str, a, b); };
+
+			// block elements
+			var blocks = '(table|thead|tfoot|caption|colgroup|tbody|tr|td|th|div|dl|dd|dt|ul|ol|li|pre|select|form|blockquote|address|math|style|script|object|input|param|p|h[1-6])';
+
+			//str = '<p>' + str;
+			str += '\n';
+
+			R('<br />\\s*<br />', '\n\n');
+			R('(<' + blocks + '[^>]*>)', '\n$1');
+			R('(</' + blocks + '>)', '$1\n\n');
+			R('\r\n|\r', '\n'); // newlines
+			R('\n\n+', '\n\n'); // remove duplicates
+			R('\n?((.|\n)+?)$', '<p>$1</p>\n'); // including one at the end
+			R('<p>\\s*?</p>', ''); // remove empty p
+			R('<p>(<div[^>]*>\\s*)', '$1<p>');
+			R('<p>([^<]+)\\s*?(</(div|address|form)[^>]*>)', '<p>$1</p>$2');
+			R('<p>\\s*(</?' + blocks + '[^>]*>)\\s*</p>', '$1');
+			R('<p>(<li.+?)</p>', '$1');
+			R('<p>\\s*(</?' + blocks + '[^>]*>)', '$1');
+			R('(</?' + blocks + '[^>]*>)\\s*</p>', '$1');
+			R('(</?' + blocks + '[^>]*>)\\s*<br />', '$1');
+			R('<br />(\\s*</?(p|li|div|dl|dd|dt|th|pre|td|ul|ol)[^>]*>)', '$1');
+
+			// pre
+			if (str.indexOf('<pre') != -1)
+			{
+				R('(<pre(.|\n)*?>)((.|\n)*?)</pre>', function(m0, m1, m2, m3)
+				{
+					return X(m1, '\\\\([\'\"\\\\])', '$1') + X(X(X(m3, '<p>', '\n'), '</p>|<br />', ''), '\\\\([\'\"\\\\])', '$1') + '</pre>';
+				});
+			}
+
+			return R('\n</p>$', '</p>');
+		},
+
+		// REMOVE TAGS
+		stripTags: function(html)
+		{
+			var allowed = this.opts.allowedTags;
+			var tags = /<\/?([a-z][a-z0-9]*)\b[^>]*>/gi;
+			return html.replace(tags, function ($0, $1)
+			{
+				return $.inArray($1.toLowerCase(), allowed) > '-1' ? $0 : '';
+			});
+		},
+
+
+		savePreCode: function(html)
+		{
+			var pre = html.match(/<pre(.*?)>([\w\W]*?)<\/pre>/gi);
+			if (pre !== null)
+			{
+				$.each(pre, $.proxy(function(i,s)
+				{
+					var arr = s.match(/<pre(.*?)>([\w\W]*?)<\/pre>/i);
+					arr[2] = this.encodeEntities(arr[2]);
+					html = html.replace(s, '<pre' + arr[1] + '>' + arr[2] + '</pre>');
+				}, this));
+			}
+
+			return html;
+		},
+		encodeEntities: function(str)
+		{
+			str = String(str).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+			return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+		},
+		cleanupPre: function(s)
+		{
+			s = s.replace(/<br>/gi, '\n');
+			s = s.replace(/<\/p>/gi, '\n');
+			s = s.replace(/<\/div>/gi, '\n');
+
+			var tmp = this.document.createElement("div");
+			tmp.innerHTML = s;
+			return tmp.textContent||tmp.innerText;
+
+		},
+
+
+		// PASTE CLEANUP
+		pasteCleanUp: function(html)
+		{
+			var parent = this.getParentNode();
+
+			// clean up pre
+			if ($(parent).get(0).tagName === 'PRE')
+			{
+				html = this.cleanupPre(html);
+				this.pasteCleanUpInsert(html);
+				return true;
+			}
+
+			// remove comments and php tags
+			html = html.replace(/<!--[\s\S]*?-->|<\?(?:php)?[\s\S]*?\?>/gi, '');
+
+			// remove nbsp
+			html = html.replace(/(&nbsp;){2,}/gi, '&nbsp;');
+
+			// remove google docs marker
+			html = html.replace(/<b\sid="internal-source-marker(.*?)">([\w\W]*?)<\/b>/gi, "$2");
+
+			// strip tags
+			html = this.stripTags(html);
+
+			// prevert
+			html = html.replace(/<td><\/td>/gi, '[td]');
+			html = html.replace(/<td>&nbsp;<\/td>/gi, '[td]');
+			html = html.replace(/<td><br><\/td>/gi, '[td]');
+			html = html.replace(/<a(.*?)href="(.*?)"(.*?)>([\w\W]*?)<\/a>/gi, '[a href="$2"]$4[/a]');
+			html = html.replace(/<iframe(.*?)>([\w\W]*?)<\/iframe>/gi, '[iframe$1]$2[/iframe]');
+			html = html.replace(/<video(.*?)>([\w\W]*?)<\/video>/gi, '[video$1]$2[/video]');
+			html = html.replace(/<audio(.*?)>([\w\W]*?)<\/audio>/gi, '[audio$1]$2[/audio]');
+			html = html.replace(/<embed(.*?)>([\w\W]*?)<\/embed>/gi, '[embed$1]$2[/embed]');
+			html = html.replace(/<object(.*?)>([\w\W]*?)<\/object>/gi, '[object$1]$2[/object]');
+			html = html.replace(/<param(.*?)>/gi, '[param$1]');
+			html = html.replace(/<img(.*?)style="(.*?)"(.*?)>/gi, '[img$1$3]');
+
+			// remove attributes
+			html = html.replace(/<(\w+)([\w\W]*?)>/gi, '<$1>');
+
+			// remove empty
+			html = html.replace(/<[^\/>][^>]*>(\s*|\t*|\n*|&nbsp;|<br>)<\/[^>]+>/gi, '');
+			html = html.replace(/<[^\/>][^>]*>(\s*|\t*|\n*|&nbsp;|<br>)<\/[^>]+>/gi, '');
+
+			// revert
+			html = html.replace(/\[td\]/gi, '<td>&nbsp;</td>');
+			html = html.replace(/\[a href="(.*?)"\]([\w\W]*?)\[\/a\]/gi, '<a href="$1">$2</a>');
+			html = html.replace(/\[iframe(.*?)\]([\w\W]*?)\[\/iframe\]/gi, '<iframe$1>$2</iframe>');
+			html = html.replace(/\[video(.*?)\]([\w\W]*?)\[\/video\]/gi, '<video$1>$2</video>');
+			html = html.replace(/\[audio(.*?)\]([\w\W]*?)\[\/audio\]/gi, '<audio$1>$2</audio>');
+			html = html.replace(/\[embed(.*?)\]([\w\W]*?)\[\/embed\]/gi, '<embed$1>$2</embed>');
+			html = html.replace(/\[object(.*?)\]([\w\W]*?)\[\/object\]/gi, '<object$1>$2</object>');
+			html = html.replace(/\[param(.*?)\]/gi, '<param$1>');
+			html = html.replace(/\[img(.*?)\]/gi, '<img$1>');
+
+
+			// convert div to p
+			if (this.opts.convertDivs)
+			{
+				html = html.replace(/<div(.*?)>([\w\W]*?)<\/div>/gi, '<p>$2</p>');
+			}
+
+			// remove span
+			html = html.replace(/<span>([\w\W]*?)<\/span>/gi, '$1');
+
+			html = html.replace(/\n{3,}/gi, '\n');
+
+			// remove dirty p
+			html = html.replace(/<p><p>/gi, '<p>');
+			html = html.replace(/<\/p><\/p>/gi, '</p>');
+
+			// FF fix
+			if ($.browser.mozilla)
+			{
+				html = html.replace(/<br>$/gi, '');
+			}
+
+			this.pasteCleanUpInsert(html);
+
+		},
+
+		pasteCleanUpInsert: function(html)
+		{
+			this.execCommand('inserthtml', html);
+
+			if (this.opts.autoresize === true)
+			{
+				$(this.document.body).scrollTop(this.saveScroll);
+			}
+			else
+			{
+				this.$editor.scrollTop(this.saveScroll);
+			}
+		},
+
+
+		// TEXTAREA CODE FORMATTING
+		formattingRemove: function(html)
+		{
+			// save pre
+			var prebuffer = [];
+			var pre = html.match(/<pre(.*?)>([\w\W]*?)<\/pre>/gi);
+			if (pre !== null)
+			{
+				$.each(pre, function(i,s)
+				{
+					html = html.replace(s, 'prebuffer_' + i);
+					prebuffer.push(s);
+				});
+			}
+
+			html = html.replace(/\s{2,}/g, ' ');
+			html = html.replace(/\n/g, ' ');
+			html = html.replace(/[\t]*/g, '');
+			html = html.replace(/\n\s*\n/g, "\n");
+			html = html.replace(/^[\s\n]*/g, '');
+			html = html.replace(/[\s\n]*$/g, '');
+			html = html.replace(/>\s+</g, '><');
+
+			if (prebuffer)
+			{
+				$.each(prebuffer, function(i,s)
+				{
+					html = html.replace('prebuffer_' + i, s);
+				});
+
+				prebuffer = [];
+			}
+
+			return html;
+		},
+		formattingIndenting: function(html)
+		{
+			html = html.replace(/<li/g, "\t<li");
+			html = html.replace(/<tr/g, "\t<tr");
+			html = html.replace(/<td/g, "\t\t<td");
+			html = html.replace(/<\/tr>/g, "\t</tr>");
+
+			return html;
+		},
+		formattingEmptyTags: function(html)
+		{
+			var etags = ["<pre></pre>","<blockquote>\\s*</blockquote>","<em>\\s*</em>","<ul></ul>","<ol></ol>","<li></li>","<table></table>","<tr></tr>","<span>\\s*<span>", "<span>&nbsp;<span>", "<b>\\s*</b>", "<b>&nbsp;</b>", "<p>\\s*</p>", "<p>&nbsp;</p>",  "<p>\\s*<br>\\s*</p>", "<div>\\s*</div>", "<div>\\s*<br>\\s*</div>"];
+			for (var i = 0; i < etags.length; ++i)
+			{
+				var bbb = etags[i];
+				html = html.replace(new RegExp(bbb,'gi'), "");
+			}
+
+			return html;
+		},
+		formattingAddBefore: function(html)
+		{
+			var lb = '\r\n';
+			var btags = ["<p", "<form","</ul>", '</ol>', "<fieldset","<legend","<object","<embed","<select","<option","<input","<textarea","<pre","<blockquote","<ul","<ol","<li","<dl","<dt","<dd","<table", "<thead","<tbody","<caption","</caption>","<th","<tr","<td","<figure"];
+			for (var i = 0; i < btags.length; ++i)
+			{
+				var eee = btags[i];
+				html = html.replace(new RegExp(eee,'gi'),lb+eee);
+			}
+
+			return html;
+		},
+		formattingAddAfter: function(html)
+		{
+			var lb = '\r\n';
+			var atags = ['</p>', '</div>', '</h1>', '</h2>', '</h3>', '</h4>', '</h5>', '</h6>', '<br>', '<br />', '</dl>', '</dt>', '</dd>', '</form>', '</blockquote>', '</pre>', '</legend>', '</fieldset>', '</object>', '</embed>', '</textarea>', '</select>', '</option>', '</table>', '</thead>', '</tbody>', '</tr>', '</td>', '</th>', '</figure>'];
+			for (var i = 0; i < atags.length; ++i)
+			{
+				var aaa = atags[i];
+				html = html.replace(new RegExp(aaa,'gi'),aaa+lb);
+			}
+
+			return html;
+		},
+		formatting: function(html)
+		{
+			html = this.formattingRemove(html);
+
+			// empty tags
+			html = this.formattingEmptyTags(html);
+
+			// add formatting before
+			html = this.formattingAddBefore(html);
+
+			// add formatting after
+			html = this.formattingAddAfter(html);
+
+			// indenting
+			html = this.formattingIndenting(html);
+
+			return html;
+		},
+
+		// TOGGLE
+		toggle: function()
+		{
+			var html;
+
+			if (this.opts.visual)
+			{
+				var height = this.$editor.innerHeight();
+
+				this.$editor.hide();
+				this.$content.hide();
+
+				html = this.$editor.html();
+				html = $.trim(this.formatting(html));
+
+				this.$el.height(height).val(html).show().focus();
+
+				this.setBtnActive('html');
+				this.opts.visual = false;
+			}
+			else
+			{
+				this.$el.hide();
+				var html = this.$el.val();
+
+				html = this.savePreCode(html);
+
+				// clean up
+				html = this.stripTags(html);
+
+				// set code
+				this.$editor.html(html).show();
+				this.$content.show();
+
+				if (this.$editor.html() === '')
+				{
+					this.setCode(this.opts.emptyHtml);
+				}
+
+				this.$editor.focus();
+
+				this.setBtnInactive('html');
+				this.opts.visual = true;
+
+				this.observeImages();
+				this.observeTables();
+			}
+		},
+
+		// AUTOSAVE
+		autoSave: function()
+		{
+			this.autosaveInterval = setInterval($.proxy(function()
+			{
+				$.ajax({
+					url: this.opts.autosave,
+					type: 'post',
+					data: this.$el.attr('name') + '=' + escape(encodeURIComponent(this.getCode())),
+					success: $.proxy(function(data)
+					{
+						// callback
+						if (typeof this.opts.autosaveCallback === 'function')
+						{
+							this.opts.autosaveCallback(data, this);
+						}
+
+					}, this)
+				});
+
+
+			}, this), this.opts.interval*1000);
+		},
+
+		// TOOLBAR
+		buildToolbar: function()
+		{
+			if (this.opts.toolbar === false)
+			{
+				return false;
+			}
+
+			this.$toolbar = $('<ul>').addClass('redactor_toolbar');
+
+			if (this.opts.air)
+			{
+				$(this.air).append(this.$toolbar);
+				$('body').append(this.air);
+			}
+			else
+			{
+				if (this.opts.toolbarExternal === false)
+				{
+					this.$box.prepend(this.$toolbar);
+				}
+				else
+				{
+					$(this.opts.toolbarExternal).html(this.$toolbar);
+				}
+			}
+
+			$.each(this.opts.buttons, $.proxy(function(i,key)
+			{
+
+				if (key !== '|' && typeof this.opts.toolbar[key] !== 'undefined')
+				{
+					var s = this.opts.toolbar[key];
+
+					if (this.opts.fileUpload === false && key === 'file')
+					{
+						return true;
+					}
+
+					this.$toolbar.append($('<li>').append(this.buildButton(key, s)));
+				}
+
+
+				if (key === '|')
+				{
+					this.$toolbar.append($('<li class="redactor_separator"></li>'));
+				}
+
+			}, this));
+
+		},
+		buildButton: function(key, s)
+		{
+			var button = $('<a href="javascript:void(null);" title="' + s.title + '" class="redactor_btn_' + key + '"></a>');
+
+			if (typeof s.func === 'undefined')
+			{
+				button.click($.proxy(function()
+				{
+					if ($.inArray(key, this.opts.activeButtons) != -1)
+					{
+						this.inactiveAllButtons();
+						this.setBtnActive(key);
+					}
+
+					if ($.browser.mozilla)
+					{
+						this.$editor.focus();
+						//this.restoreSelection();
+					}
+
+					this.execCommand(s.exec, key);
+
+				}, this));
+			}
+			else if (s.func !== 'show')
+			{
+				button.click($.proxy(function(e) {
+
+					this[s.func](e);
+
+				}, this));
+			}
+
+			if (typeof s.callback !== 'undefined' && s.callback !== false)
+			{
+				button.click($.proxy(function(e) { s.callback(this, e, key); }, this));
+			}
+
+			// dropdown
+			if (key === 'backcolor' || key === 'fontcolor' || typeof(s.dropdown) !== 'undefined')
+			{
+				var dropdown = $('<div class="redactor_dropdown" style="display: none;">');
+
+				if (key === 'backcolor' || key === 'fontcolor')
+				{
+					dropdown = this.buildColorPicker(dropdown, key);
+				}
+				else
+				{
+					dropdown = this.buildDropdown(dropdown, s.dropdown);
+				}
+
+				this.dropdowns.push(dropdown.appendTo($(document.body)));
+
+				// observing dropdown
+				this.hdlShowDropDown = $.proxy(function(e) { this.showDropDown(e, dropdown, key); }, this);
+
+				button.click(this.hdlShowDropDown);
+			}
+
+			return button;
+		},
+		buildDropdown: function(dropdown, obj)
+		{
+			$.each(obj, $.proxy(
+				function (x, d)
+				{
+					if (typeof(d.className) === 'undefined')
+					{
+						d.className = '';
+					}
+
+					var drop_a;
+					if (typeof d.name !== 'undefined' && d.name === 'separator')
+					{
+						drop_a = $('<a class="redactor_separator_drop">');
+					}
+					else
+					{
+						drop_a = $('<a href="javascript:void(null);" class="' + d.className + '">' + d.title + '</a>');
+
+						if (typeof(d.callback) === 'function')
+						{
+							$(drop_a).click($.proxy(function(e) { d.callback(this, e, x); }, this));
+						}
+						else if (typeof(d.func) === 'undefined')
+						{
+							$(drop_a).click($.proxy(function() { this.execCommand(d.exec, x); }, this));
+						}
+						else
+						{
+							$(drop_a).click($.proxy(function(e) { this[d.func](e); }, this));
+						}
+					}
+
+					$(dropdown).append(drop_a);
+
+				}, this)
+			);
+
+			return dropdown;
+
+		},
+		buildColorPicker: function(dropdown, key)
+		{
+			var mode;
+			if (key === 'backcolor')
+			{
+				if ($.browser.msie)
+				{
+					mode = 'BackColor';
+				}
+				else
+				{
+					mode = 'hilitecolor';
+				}
+			}
+			else
+			{
+				mode = 'forecolor';
+			}
+
+			$(dropdown).width(210);
+
+			var len = this.opts.colors.length;
+			for (var i = 0; i < len; ++i)
+			{
+				var color = this.opts.colors[i];
+
+				var swatch = $('<a rel="' + color + '" href="javascript:void(null);" class="redactor_color_link"></a>').css({ 'backgroundColor': color });
+				$(dropdown).append(swatch);
+
+				var _self = this;
+				$(swatch).click(function()
+				{
+					_self.execCommand(mode, $(this).attr('rel'));
+
+					if (mode === 'forecolor')
+					{
+						_self.$editor.find('font').replaceWith(function() {
+
+							return $('<span style="color: ' + $(this).attr('color') + ';">' + $(this).html() + '</span>');
+
+						});
+					}
+
+					if ($.browser.msie && mode === 'BackColor')
+					{
+						_self.$editor.find('font').replaceWith(function() {
+
+							return $('<span style="' + $(this).attr('style') + '">' + $(this).html() + '</span>');
+
+						});
+					}
+
+				});
+			}
+
+			var elnone = $('<a href="javascript:void(null);" class="redactor_color_none"></a>').html(RLANG.none);
+
+			if (key === 'backcolor')
+			{
+				elnone.click($.proxy(this.setBackgroundNone, this));
+			}
+			else
+			{
+				elnone.click($.proxy(this.setColorNone, this));
+			}
+
+			$(dropdown).append(elnone);
+
+			return dropdown;
+		},
+		setBackgroundNone: function()
+		{
+			$(this.getParentNode()).css('background-color', 'transparent');
+			this.syncCode();
+		},
+		setColorNone: function()
+		{
+			$(this.getParentNode()).attr('color', '').css('color', '');
+			this.syncCode();
+		},
+
+		// DROPDOWNS
+		showDropDown: function(e, dropdown, key)
+		{
+			if (this.getBtn(key).hasClass('dropact'))
+			{
+				this.hideAllDropDown();
+			}
+			else
+			{
+				this.hideAllDropDown();
+
+				this.setBtnActive(key);
+				this.getBtn(key).addClass('dropact');
+
+				var left = this.getBtn(key).offset().left;
+
+				if (this.opts.air)
+				{
+					var air_top = this.air.offset().top;
+
+					$(dropdown).css({ position: 'absolute', left: left + 'px', top: air_top+30 + 'px' }).show();
+				}
+				else if (this.opts.fixed && this.fixed)
+				{
+					$(dropdown).css({ position: 'fixed', left: left + 'px', top: '30px' }).show();
+				}
+				else
+				{
+					var top = this.$toolbar.offset().top + 30;
+					$(dropdown).css({ position: 'absolute', left: left + 'px', top: top + 'px' }).show();
+				}
+			}
+
+			var hdlHideDropDown = $.proxy(function(e) { this.hideDropDown(e, dropdown, key); }, this);
+
+			$(document).one('click', hdlHideDropDown);
+			this.$editor.one('click', hdlHideDropDown);
+			this.$content.one('click', hdlHideDropDown);
+
+			e.stopPropagation();
+
+		},
+		hideAllDropDown: function()
+		{
+			this.$toolbar.find('a.dropact').removeClass('redactor_act').removeClass('dropact');
+			$('.redactor_dropdown').hide();
+		},
+		hideDropDown: function(e, dropdown, key)
+		{
+			if (!$(e.target).hasClass('dropact'))
+			{
+				$(dropdown).removeClass('dropact');
+				this.showedDropDown = false;
+				this.hideAllDropDown();
+			}
+		},
+
+		// BUTTONS MANIPULATIONS
+		getBtn: function(key)
+		{
+			if (this.opts.toolbar === false)
+			{
+				return false;
+			}
+
+			return $(this.$toolbar.find('a.redactor_btn_' + key));
+		},
+		setBtnActive: function(key)
+		{
+			this.getBtn(key).addClass('redactor_act');
+		},
+		setBtnInactive: function(key)
+		{
+			this.getBtn(key).removeClass('redactor_act');
+		},
+		inactiveAllButtons: function()
+		{
+			$.each(this.opts.activeButtons, $.proxy(function(i,s)
+			{
+				this.setBtnInactive(s);
+
+			}, this));
+		},
+		changeBtnIcon: function(key, classname)
+		{
+			this.getBtn(key).addClass('redactor_btn_' + classname);
+		},
+		removeBtnIcon: function(key, classname)
+		{
+			this.getBtn(key).removeClass('redactor_btn_' + classname);
+		},
+
+		addBtnSeparator: function()
+		{
+			this.$toolbar.append($('<li class="redactor_separator"></li>'));
+		},
+		addBtnSeparatorAfter: function(key)
+		{
+			var $btn = this.getBtn(key);
+			$btn.parent().after($('<li class="redactor_separator"></li>'));
+		},
+		addBtnSeparatorBefore: function(key)
+		{
+			var $btn = this.getBtn(key);
+			$btn.parent().before($('<li class="redactor_separator"></li>'));
+		},
+		removeBtnSeparatorAfter: function(key)
+		{
+			var $btn = this.getBtn(key);
+			$btn.parent().next().remove();
+		},
+		removeBtnSeparatorBefore: function(key)
+		{
+			var $btn = this.getBtn(key);
+			$btn.parent().prev().remove();
+		},
+
+		setBtnRight: function(key)
+		{
+			if (this.opts.toolbar === false)
+			{
+				return false;
+			}
+
+			this.getBtn(key).parent().addClass('redactor_btn_right');
+		},
+		setBtnLeft: function(key)
+		{
+			if (this.opts.toolbar === false)
+			{
+				return false;
+			}
+
+			this.getBtn(key).parent().removeClass('redactor_btn_right');
+		},
+		addBtn: function(key, title, callback, dropdown)
+		{
+			if (this.opts.toolbar === false)
+			{
+				return false;
+			}
+
+			var btn = this.buildButton(key, { title: title, callback: callback, dropdown: dropdown });
+			this.$toolbar.append($('<li>').append(btn));
+		},
+		addBtnFirst: function(key, title, callback, dropdown)
+		{
+			if (this.opts.toolbar === false)
+			{
+				return false;
+			}
+
+			var btn = this.buildButton(key, { title: title, callback: callback, dropdown: dropdown });
+			this.$toolbar.prepend($('<li>').append(btn));
+		},
+		addBtnAfter: function(afterkey, key, title, callback, dropdown)
+		{
+			if (this.opts.toolbar === false)
+			{
+				return false;
+			}
+
+			var btn = this.buildButton(key, { title: title, callback: callback, dropdown: dropdown });
+			var $btn = this.getBtn(afterkey);
+			$btn.parent().after($('<li>').append(btn));
+		},
+		addBtnBefore: function(beforekey, key, title, callback, dropdown)
+		{
+			if (this.opts.toolbar === false)
+			{
+				return false;
+			}
+
+			var btn = this.buildButton(key, { title: title, callback: callback, dropdown: dropdown });
+			var $btn = this.getBtn(beforekey);
+			$btn.parent().before($('<li>').append(btn));
+		},
+		removeBtn: function(key, separator)
+		{
+			var $btn = this.getBtn(key);
+
+			if (separator === true)
+			{
+				$btn.parent().next().remove();
+			}
+
+			$btn.parent().removeClass('redactor_btn_right');
+			$btn.remove();
+		},
+
+
+		// SELECTION AND NODE MANIPULATION
+		getFragmentHtml: function (fragment)
+		{
+			var cloned = fragment.cloneNode(true);
+			var div = this.document.createElement('div');
+			div.appendChild(cloned);
+			return div.innerHTML;
+		},
+		extractContent: function()
+		{
+			var node = this.$editor.get(0);
+			var frag = this.document.createDocumentFragment(), child;
+			while ((child = node.firstChild))
+			{
+				frag.appendChild(child);
+			}
+
+			return frag;
+		},
+
+		// Save and Restore Selection
+		saveSelection: function()
+		{
+			this.$editor.focus();
+
+			this.savedSel = this.getOrigin();
+			this.savedSelObj = this.getFocus();
+		},
+		restoreSelection: function()
+		{
+			if (typeof this.savedSel !== 'undefined' && this.savedSel !== null && this.savedSelObj !== null && this.savedSel[0].tagName !== 'BODY')
+			{
+				if (this.opts.iframe === false && $(this.savedSel[0]).closest('.redactor_editor').size() == 0)
+				{
+					this.$editor.focus();
+				}
+				else
+				{
+					if ($.browser.opera)
+					{
+						this.$editor.focus();
+					}
+
+					this.setSelection(this.savedSel[0], this.savedSel[1], this.savedSelObj[0], this.savedSelObj[1]);
+
+					if ($.browser.mozilla)
+					{
+						this.$editor.focus();
+					}
+				}
+			}
+			else
+			{
+				this.$editor.focus();
+			}
+		},
+
+		// Selection
+		getSelection: function()
+		{
+			var doc = this.document;
+
+			if (this.window.getSelection)
+			{
+				return this.window.getSelection();
+			}
+			else if (doc.getSelection)
+			{
+				return doc.getSelection();
+			}
+			else // IE
+			{
+				return doc.selection.createRange();
+			}
+
+			return false;
+		},
+		hasSelection: function()
+		{
+			if (!this.oldIE())
+			{
+				var sel;
+				return (sel = this.getSelection()) && (sel.focusNode != null) && (sel.anchorNode != null);
+			}
+			else // IE8
+			{
+				var node = this.$editor.get(0);
+
+				var range;
+				node.focus();
+				if (!node.document.selection)
+				{
+					return false;
+				}
+
+				range = node.document.selection.createRange();
+				return range && range.parentElement().document === node.document;
+			}
+		},
+		getOrigin: function()
+		{
+			if (!this.oldIE())
+			{
+				var sel;
+				if (!((sel = this.getSelection()) && (sel.anchorNode != null)))
+				{
+					return null;
+				}
+
+				return [sel.anchorNode, sel.anchorOffset];
+			}
+			else
+			{
+				var node = this.$editor.get(0);
+
+				var range;
+				node.focus();
+				if (!this.hasSelection())
+				{
+					return null;
+				}
+
+				range = node.document.selection.createRange();
+				return this._getBoundary(node.document, range, true);
+			}
+		},
+		getFocus: function()
+		{
+			if (!this.oldIE())
+			{
+				var sel;
+				if (!((sel = this.getSelection()) && (sel.focusNode != null)))
+				{
+					return null;
+				}
+
+				return [sel.focusNode, sel.focusOffset];
+			}
+			else
+			{
+				var node = this.$editor.get(0);
+
+				var range;
+				node.focus();
+				if (!this.hasSelection())
+				{
+					return null;
+				}
+
+				range = node.document.selection.createRange();
+				return this._getBoundary(node.document, range, false);
+
+			}
+		},
+		setSelection: function (orgn, orgo, focn, foco)
+		{
+			if (focn == null)
+			{
+				focn = orgn;
+			}
+
+			if (foco == null)
+			{
+				foco = orgo;
+			}
+
+			if (!this.oldIE())
+			{
+				var sel = this.getSelection();
+				if (!sel)
+				{
+					return;
+				}
+
+				if (sel.collapse && sel.extend)
+				{
+					sel.collapse(orgn, orgo);
+					sel.extend(focn, foco);
+				}
+				else // IE9
+				{
+					r = this.document.createRange();
+					r.setStart(orgn, orgo);
+					r.setEnd(focn, foco);
+
+					try
+					{
+						sel.removeAllRanges();
+					}
+					catch (e) {}
+
+					sel.addRange(r);
+				}
+			}
+			else
+			{
+				var node = this.$editor.get(0);
+				var range = node.document.body.createTextRange();
+
+				this._moveBoundary(node.document, range, false, focn, foco);
+				this._moveBoundary(node.document, range, true, orgn, orgo);
+				return range.select();
+			}
+		},
+
+		// Get elements, html and text
+		getCurrentNode: function()
+		{
+			if (typeof this.window.getSelection !== 'undefined')
+			{
+				return this.getSelectedNode().parentNode;
+			}
+			else if (typeof this.document.selection !== 'undefined')
+			{
+				return this.getSelection().parentElement();
+			}
+		},
+		getParentNode: function()
+		{
+			return $(this.getCurrentNode()).parent()[0]
+		},
+		getSelectedNode: function()
+		{
+			if (this.oldIE())
+			{
+				return this.getSelection().parentElement();
+			}
+			else if (typeof this.window.getSelection !== 'undefined')
+			{
+				var s = this.window.getSelection();
+				if (s.rangeCount > 0)
+				{
+					return this.getSelection().getRangeAt(0).startContainer;
+				}
+				else
+				{
+					return false;
+				}
+			}
+			else if (typeof this.document.selection !== 'undefined')
+			{
+				return this.getSelection();
+			}
+		},
+
+
+		// IE8 specific selection
+		_getBoundary: function(doc, textRange, bStart)
+		{
+			var cursor, cursorNode, node, offset, parent;
+
+			cursorNode = doc.createElement('a');
+			cursor = textRange.duplicate();
+			cursor.collapse(bStart);
+			parent = cursor.parentElement();
+			while (true)
+			{
+				parent.insertBefore(cursorNode, cursorNode.previousSibling);
+				cursor.moveToElementText(cursorNode);
+				if (!(cursor.compareEndPoints((bStart ? 'StartToStart' : 'StartToEnd'), textRange) > 0 && (cursorNode.previousSibling != null)))
+				{
+					break;
+				}
+			}
+
+			if (cursor.compareEndPoints((bStart ? 'StartToStart' : 'StartToEnd'), textRange) === -1 && cursorNode.nextSibling)
+			{
+				cursor.setEndPoint((bStart ? 'EndToStart' : 'EndToEnd'), textRange);
+				node = cursorNode.nextSibling;
+				offset = cursor.text.length;
+			}
+			else
+			{
+				node = cursorNode.parentNode;
+				offset = this._getChildIndex(cursorNode);
+			}
+
+			cursorNode.parentNode.removeChild(cursorNode);
+			return [node, offset];
+		},
+		_moveBoundary: function(doc, textRange, bStart, node, offset)
+		{
+			var anchorNode, anchorParent, cursor, cursorNode, textOffset;
+
+			textOffset = 0;
+			anchorNode = this._isText(node) ? node : node.childNodes[offset];
+			anchorParent = this._isText(node) ? node.parentNode : node;
+
+			if (this._isText(node))
+			{
+				textOffset = offset;
+			}
+
+			cursorNode = doc.createElement('a');
+			anchorParent.insertBefore(cursorNode, anchorNode || null);
+			cursor = doc.body.createTextRange();
+			cursor.moveToElementText(cursorNode);
+			cursorNode.parentNode.removeChild(cursorNode);
+
+			textRange.setEndPoint((bStart ? 'StartToStart' : 'EndToEnd'), cursor);
+			return textRange[bStart ? 'moveStart' : 'moveEnd']('character', textOffset);
+		},
+		_isText: function (d)
+		{
+			return (d != null ? d.nodeType == 3 : false);
+		},
+		_getChildIndex: function (e)
+		{
+			var k = 0;
+			while (e = e.previousSibling) {
+				k++;
+			}
+			return k;
+		},
+
+		insertNodeAfterCaret: function(node)
+		{
+			this.saveSelection();
+		    this.insertNodeAtCaret(node);
+			this.restoreSelection();
+		},
+
+		insertNodeAtCaret: function(node)
+		{
+			if (this.window.getSelection)
+			{
+				var sel = this.getSelection();
+				if (sel.rangeCount)
+				{
+					var range = sel.getRangeAt(0);
+					range.collapse(false);
+					range.insertNode(node);
+					range = range.cloneRange();
+					range.selectNodeContents(node);
+					range.collapse(false);
+					sel.removeAllRanges();
+					sel.addRange(range);
+				}
+			}
+			else if (this.document.selection)
+			{
+				var html = (node.nodeType === 1) ? node.outerHTML : node.data;
+				var id = "marker_" + ("" + Math.random()).slice(2);
+				html += '<span id="' + id + '"></span>';
+				var textRange = this.getSelection();
+				textRange.collapse(false);
+				textRange.pasteHTML(html);
+				var markerSpan = this.document.getElementById(id);
+				textRange.moveToElementText(markerSpan);
+				textRange.select();
+				markerSpan.parentNode.removeChild(markerSpan);
+			}
+		},
+		getSelectedHtml: function()
+		{
+			var html = '';
+			if (this.window.getSelection)
+			{
+				var sel = this.window.getSelection();
+				if (sel.rangeCount)
+				{
+					var container = this.document.createElement("div");
+					for (var i = 0, len = sel.rangeCount; i < len; ++i)
+					{
+						container.appendChild(sel.getRangeAt(i).cloneContents());
+					}
+
+					html = container.innerHTML;
+
+				}
+			}
+			else if (this.document.selection)
+			{
+				if (this.document.selection.type === "Text")
+				{
+					html = this.document.selection.createRange().htmlText;
+				}
+			}
+
+			return html;
+		},
+
+		// RESIZE IMAGES
+		resizeImage: function(resize)
+		{
+			var clicked = false;
+			var clicker = false;
+			var start_x;
+			var start_y;
+			var ratio = $(resize).width()/$(resize).height();
+			var min_w = 10;
+			var min_h = 10;
+
+			$(resize).off('hover mousedown mouseup click mousemove');
+ 			$(resize).hover(function() { $(resize).css('cursor', 'nw-resize'); }, function() { $(resize).css('cursor',''); clicked = false; });
+
+			$(resize).mousedown(function(e)
+			{
+				e.preventDefault();
+
+				ratio = $(resize).width()/$(resize).height();
+
+				clicked = true;
+				clicker = true;
+
+				start_x = Math.round(e.pageX - $(resize).eq(0).offset().left);
+				start_y = Math.round(e.pageY - $(resize).eq(0).offset().top);
+			});
+
+			$(resize).mouseup($.proxy(function(e)
+			{
+				clicked = false;
+				this.syncCode();
+
+			}, this));
+
+			$(resize).click($.proxy(function(e)
+			{
+				if (clicker)
+				{
+					this.imageEdit(e);
+				}
+
+			}, this));
+
+			$(resize).mousemove(function(e)
+			{
+				if (clicked)
+				{
+					clicker = false;
+
+					var mouse_x = Math.round(e.pageX - $(this).eq(0).offset().left) - start_x;
+					var mouse_y = Math.round(e.pageY - $(this).eq(0).offset().top) - start_y;
+
+					var div_h = $(resize).height();
+
+					var new_h = parseInt(div_h, 10) + mouse_y;
+					var new_w = new_h*ratio;
+
+					if (new_w > min_w)
+					{
+						$(resize).width(new_w);
+					}
+
+					if (new_h > min_h)
+					{
+						$(resize).height(new_h);
+					}
+
+					start_x = Math.round(e.pageX - $(this).eq(0).offset().left);
+					start_y = Math.round(e.pageY - $(this).eq(0).offset().top);
+				}
+			});
+		},
+
+		// TABLE
+		showTable: function()
+		{
+			this.saveSelection();
+
+			this.modalInit(RLANG.table, this.opts.modal_table, 300, $.proxy(function()
+				{
+					$('#redactor_insert_table_btn').click($.proxy(this.insertTable, this));
+
+					setTimeout(function()
+					{
+						$('#redactor_table_rows').focus();
+					}, 200);
+
+				}, this)
+			);
+		},
+		insertTable: function()
+		{
+			var rows = $('#redactor_table_rows').val();
+			var columns = $('#redactor_table_columns').val();
+
+			var table_box = $('<div></div>');
+
+			var tableid = Math.floor(Math.random() * 99999);
+			var table = $('<table id="table' + tableid + '"><tbody></tbody></table>');
+
+			for (var i = 0; i < rows; i++)
+			{
+				var row = $('<tr></tr>');
+				for (var z = 0; z < columns; z++)
+				{
+					var column = $('<td><br></td>');
+					$(row).append(column);
+				}
+				$(table).append(row);
+			}
+
+			$(table_box).append(table);
+			var html = $(table_box).html() + '<p></p>';
+
+			this.restoreSelection();
+			this.execCommand('inserthtml', html);
+			this.modalClose();
+			this.observeTables();
+
+		},
+		tableObserver: function(e)
+		{
+			this.$table = $(e.target).closest('table');
+
+			this.$table_tr = this.$table.find('tr');
+			this.$table_td = this.$table.find('td');
+
+			this.$tbody = $(e.target).closest('tbody');
+			this.$thead = $(this.$table).find('thead');
+
+			this.$current_td = $(e.target);
+			this.$current_tr = $(e.target).closest('tr');
+		},
+		deleteTable: function()
+		{
+			$(this.$table).remove();
+			this.$table = false;
+			this.syncCode();
+		},
+		deleteRow: function()
+		{
+			$(this.$current_tr).remove();
+			this.syncCode();
+		},
+		deleteColumn: function()
+		{
+			var index = $(this.$current_td).get(0).cellIndex;
+
+			$(this.$table).find('tr').each(function()
+			{
+				$(this).find('td').eq(index).remove();
+			});
+
+			this.syncCode();
+		},
+		addHead: function()
+		{
+			if ($(this.$table).find('thead').size() !== 0)
+			{
+				this.deleteHead();
+			}
+			else
+			{
+				var tr = $(this.$table).find('tr').first().clone();
+				tr.find('td').html('&nbsp;');
+				this.$thead = $('<thead></thead>');
+				this.$thead.append(tr);
+				$(this.$table).prepend(this.$thead);
+				this.syncCode();
+			}
+		},
+		deleteHead: function()
+		{
+			$(this.$thead).remove();
+			this.$thead = false;
+			this.syncCode();
+		},
+		insertRowAbove: function()
+		{
+			this.insertRow('before');
+		},
+		insertRowBelow: function()
+		{
+			this.insertRow('after');
+		},
+		insertColumnLeft: function()
+		{
+			this.insertColumn('before');
+		},
+		insertColumnRight: function()
+		{
+			this.insertColumn('after');
+		},
+		insertRow: function(type)
+		{
+			var new_tr = $(this.$current_tr).clone();
+			new_tr.find('td').html('&nbsp;');
+			if (type === 'after')
+			{
+				$(this.$current_tr).after(new_tr);
+			}
+			else
+			{
+				$(this.$current_tr).before(new_tr);
+			}
+
+			this.syncCode();
+		},
+		insertColumn: function(type)
+		{
+			var index = 0;
+
+			this.$current_tr.find('td').each($.proxy(function(i,s)
+			{
+				if ($(s)[0] === this.$current_td[0])
+				{
+					index = i;
+				}
+			}, this));
+
+			this.$table_tr.each(function(i,s)
+			{
+				var current = $(s).find('td').eq(index);
+
+				var td = current.clone();
+				td.html('&nbsp;');
+
+				if (type === 'after')
+				{
+					$(current).after(td);
+				}
+				else
+				{
+					$(current).before(td);
+				}
+
+			});
+
+			this.syncCode();
+		},
+
+		// INSERT VIDEO
+		showVideo: function()
+		{
+			this.saveSelection();
+			this.modalInit(RLANG.video, this.opts.modal_video, 600, $.proxy(function()
+				{
+					$('#redactor_insert_video_btn').click($.proxy(this.insertVideo, this));
+
+					setTimeout(function()
+					{
+						$('#redactor_insert_video_area').focus();
+					}, 200);
+
+				}, this)
+			);
+		},
+		insertVideo: function()
+		{
+			var data = $('#redactor_insert_video_area').val();
+			data = this.stripTags(data);
+
+			this.restoreSelection();
+			this.execCommand('inserthtml', data);
+			this.modalClose();
+		},
+
+		// INSERT IMAGE
+		imageEdit: function(e)
+		{
+			var $el = $(e.target);
+			var parent = $el.parent();
+
+			var callback = $.proxy(function()
+			{
+				$('#redactor_file_alt').val($el.attr('alt'));
+				$('#redactor_image_edit_src').attr('href', $el.attr('src'));
+				$('#redactor_form_image_align').val($el.css('float'));
+
+				if ($(parent).get(0).tagName === 'A')
+				{
+					$('#redactor_file_link').val($(parent).attr('href'));
+				}
+
+				$('#redactor_image_delete_btn').click($.proxy(function() { this.imageDelete($el); }, this));
+				$('#redactorSaveBtn').click($.proxy(function() { this.imageSave($el); }, this));
+
+			}, this);
+
+			this.modalInit(RLANG.image, this.opts.modal_image_edit, 380, callback);
+
+		},
+		imageDelete: function(el)
+		{
+			$(el).remove();
+			this.modalClose();
+			this.syncCode();
+		},
+		imageSave: function(el)
+		{
+			var parent = $(el).parent();
+
+			$(el).attr('alt', $('#redactor_file_alt').val());
+
+			var floating = $('#redactor_form_image_align').val();
+
+			if (floating === 'left')
+			{
+				$(el).css({ 'float': 'left', margin: '0 10px 10px 0' });
+			}
+			else if (floating === 'right')
+			{
+				$(el).css({ 'float': 'right', margin: '0 0 10px 10px' });
+			}
+			else
+			{
+				$(el).css({ 'float': 'none', margin: '0' });
+			}
+
+			// as link
+			var link = $.trim($('#redactor_file_link').val());
+			if (link !== '')
+			{
+				if ($(parent).get(0).tagName !== 'A')
+				{
+					$(el).replaceWith('<a href="' + link + '">' + this.outerHTML(el) + '</a>');
+				}
+				else
+				{
+					$(parent).attr('href', link);
+				}
+			}
+			else
+			{
+				if ($(parent).get(0).tagName === 'A')
+				{
+					$(parent).replaceWith(this.outerHTML(el));
+				}
+			}
+
+			this.modalClose();
+			this.observeImages();
+			this.syncCode();
+
+		},
+		showImage: function()
+		{
+			this.saveSelection();
+
+			var callback = $.proxy(function()
+			{
+				// json
+				if (this.opts.imageGetJson !== false)
+				{
+					$.getJSON(this.opts.imageGetJson, $.proxy(function(data) {
+
+						var folders = {};
+						var z = 0;
+
+						// folders
+						$.each(data, $.proxy(function(key, val)
+						{
+							if (typeof val.folder !== 'undefined')
+							{
+								z++;
+								folders[val.folder] = z;
+							}
+
+						}, this));
+
+						var folderclass = false;
+						$.each(data, $.proxy(function(key, val)
+						{
+							// title
+							var thumbtitle = '';
+							if (typeof val.title !== 'undefined')
+							{
+								thumbtitle = val.title;
+							}
+
+							var folderkey = 0;
+							if (!$.isEmptyObject(folders) && typeof val.folder !== 'undefined')
+							{
+								folderkey = folders[val.folder];
+								if (folderclass === false)
+								{
+									folderclass = '.redactorfolder' + folderkey;
+								}
+							}
+
+							var img = $('<img src="' + val.thumb + '" class="redactorfolder redactorfolder' + folderkey + '" rel="' + val.image + '" title="' + thumbtitle + '" />');
+							$('#redactor_image_box').append(img);
+							$(img).click($.proxy(this.imageSetThumb, this));
+
+
+						}, this));
+
+						// folders
+						if (!$.isEmptyObject(folders))
+						{
+							$('.redactorfolder').hide();
+							$(folderclass).show();
+
+							var onchangeFunc = function(e)
+							{
+								$('.redactorfolder').hide();
+								$('.redactorfolder' + $(e.target).val()).show();
+							}
+
+							var select = $('<select id="redactor_image_box_select">');
+							$.each(folders, function(k,v)
+							{
+								select.append($('<option value="' + v + '">' + k + '</option>'));
+							});
+
+							$('#redactor_image_box').before(select);
+							select.change(onchangeFunc);
+						}
+
+					}, this));
+				}
+				else
+				{
+					$('#redactor_tabs a').eq(1).remove();
+				}
+
+				if (this.opts.imageUpload !== false)
+				{
+
+					// dragupload
+					if (this.opts.uploadCrossDomain === false && this.isMobile() === false)
+					{
+
+						if ($('#redactor_file').size() !== 0)
+						{
+							$('#redactor_file').dragupload(
+							{
+								url: this.opts.imageUpload,
+								uploadFields: this.opts.uploadFields,
+								success: $.proxy(this.imageUploadCallback, this),
+								error: $.proxy(this.opts.imageUploadErrorCallback, this)
+							});
+						}
+					}
+
+					// ajax upload
+					this.uploadInit('redactor_file',
+					{
+						auto: true,
+						url: this.opts.imageUpload,
+						success: $.proxy(this.imageUploadCallback, this),
+						error: $.proxy(this.opts.imageUploadErrorCallback, this)
+					});
+				}
+				else
+				{
+					$('.redactor_tab').hide();
+					if (this.opts.imageGetJson === false)
+					{
+						$('#redactor_tabs').remove();
+						$('#redactor_tab3').show();
+					}
+					else
+					{
+						var tabs = $('#redactor_tabs a');
+						tabs.eq(0).remove();
+						tabs.eq(1).addClass('redactor_tabs_act');
+						$('#redactor_tab2').show();
+					}
+				}
+
+				$('#redactor_upload_btn').click($.proxy(this.imageUploadCallbackLink, this));
+
+				if (this.opts.imageUpload === false && this.opts.imageGetJson === false)
+				{
+					setTimeout(function()
+					{
+						$('#redactor_file_link').focus();
+					}, 200);
+
+				}
+
+			}, this);
+
+			this.modalInit(RLANG.image, this.opts.modal_image, 610, callback);
+
+		},
+		imageSetThumb: function(e)
+		{
+			this._imageSet('<img src="' + $(e.target).attr('rel') + '" alt="' + $(e.target).attr('title') + '" />', true);
+		},
+		imageUploadCallbackLink: function()
+		{
+			if ($('#redactor_file_link').val() !== '')
+			{
+				var data = '<img src="' + $('#redactor_file_link').val() + '" />';
+				this._imageSet(data, true);
+			}
+			else
+			{
+				this.modalClose();
+			}
+		},
+		imageUploadCallback: function(data)
+		{
+			this._imageSet(data);
+		},
+		_imageSet: function(json, link)
+		{
+			this.restoreSelection();
+
+			if (json !== false)
+			{
+				var html = '';
+				if (link !== true)
+				{
+					html = '<p><img src="' + json.filelink + '" /></p>';
+				}
+				else
+				{
+					html = json;
+				}
+
+				this.execCommand('inserthtml', html);
+
+				// upload image callback
+				if (link !== true && typeof this.opts.imageUploadCallback === 'function')
+				{
+					this.opts.imageUploadCallback(this, json);
+				}
+			}
+
+			this.modalClose();
+			this.observeImages();
+		},
+
+		// INSERT LINK
+		showLink: function()
+		{
+			this.saveSelection();
+
+			var callback = $.proxy(function()
+			{
+				this.insert_link_node = false;
+				var sel = this.getSelection();
+				var url = '', text = '', target = '';
+
+				if ($.browser.msie)
+				{
+					var parent = this.getParentNode();
+					if (parent.nodeName === 'A')
+					{
+						this.insert_link_node = $(parent);
+						text = this.insert_link_node.text();
+						url = this.insert_link_node.attr('href');
+						target = this.insert_link_node.attr('target');
+					}
+					else
+					{
+						if (this.oldIE())
+						{
+							text = sel.text;
+						}
+						else
+						{
+							text = sel.toString();
+						}
+					}
+				}
+				else
+				{
+					if (sel && sel.anchorNode && sel.anchorNode.parentNode.tagName === 'A')
+					{
+						url = sel.anchorNode.parentNode.href;
+						text = sel.anchorNode.parentNode.text;
+						target = sel.anchorNode.parentNode.target;
+
+						if (sel.toString() === '')
+						{
+							this.insert_link_node = sel.anchorNode.parentNode;
+						}
+					}
+					else
+					{
+						text = sel.toString();
+					}
+				}
+
+				$('.redactor_link_text').val(text);
+
+				var thref = self.location.href.replace(/\/$/i, '');
+				var turl = url.replace(thref, '');
+
+				if (url.search('mailto:') === 0)
+				{
+					this.setModalTab(2);
+
+					$('#redactor_tab_selected').val(2);
+					$('#redactor_link_mailto').val(url.replace('mailto:', ''));
+				}
+				else if (turl.search(/^#/gi) === 0)
+				{
+					this.setModalTab(3);
+
+					$('#redactor_tab_selected').val(3);
+					$('#redactor_link_anchor').val(turl.replace(/^#/gi, ''));
+				}
+				else
+				{
+					$('#redactor_link_url').val(turl);
+				}
+
+				if (target === '_blank')
+				{
+					$('#redactor_link_blank').attr('checked', true);
+				}
+
+				$('#redactor_insert_link_btn').click($.proxy(this.insertLink, this));
+
+				setTimeout(function()
+				{
+					$('#redactor_link_url').focus();
+				}, 200);
+
+			}, this);
+
+			this.modalInit(RLANG.link, this.opts.modal_link, 460, callback);
+
+		},
+		insertLink: function()
+		{
+			var tab_selected = $('#redactor_tab_selected').val();
+			var link = '', text = '', target = '';
+
+			if (tab_selected === '1') // url
+			{
+				link = $('#redactor_link_url').val();
+				text = $('#redactor_link_url_text').val();
+
+				if ($('#redactor_link_blank').attr('checked'))
+				{
+					target = ' target="_blank"';
+				}
+
+				// test url
+				var pattern = '((xn--)?[a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}';
+				var re = new RegExp('^(http|ftp|https)://' + pattern,'i');
+				var re2 = new RegExp('^' + pattern,'i');
+				if (link.search(re) == -1 && link.search(re2) == 0 && this.opts.protocol !== false)
+				{
+					link = this.opts.protocol + link;
+				}
+			}
+			else if (tab_selected === '2') // mailto
+			{
+				link = 'mailto:' + $('#redactor_link_mailto').val();
+				text = $('#redactor_link_mailto_text').val();
+			}
+			else if (tab_selected === '3') // anchor
+			{
+				link = '#' + $('#redactor_link_anchor').val();
+				text = $('#redactor_link_anchor_text').val();
+			}
+
+			this._insertLink('<a href="' + link + '"' + target + '>' +  text + '</a>', $.trim(text), link, target);
+
+		},
+		_insertLink: function(a, text, link, target)
+		{
+			this.$editor.focus();
+			this.restoreSelection();
+
+			if (text !== '')
+			{
+				if (this.insert_link_node)
+				{
+					$(this.insert_link_node).text(text);
+					$(this.insert_link_node).attr('href', link);
+					if (target !== '')
+					{
+						$(this.insert_link_node).attr('target', target);
+					}
+					else
+					{
+						$(this.insert_link_node).removeAttr('target');
+					}
+
+					this.syncCode();
+				}
+				else
+				{
+					this.execCommand('inserthtml', a);
+				}
+			}
+
+			this.modalClose();
+		},
+
+		// INSERT FILE
+		showFile: function()
+		{
+			this.saveSelection();
+
+			var callback = $.proxy(function()
+			{
+				var sel = this.getSelection();
+
+				var text = '';
+
+				if (this.oldIE())
+				{
+					text = sel.text;
+				}
+				else
+				{
+					text = sel.toString();
+				}
+
+				$('#redactor_filename').val(text);
+
+				// dragupload
+				if (this.opts.uploadCrossDomain === false && this.isMobile() === false)
+				{
+					$('#redactor_file').dragupload(
+					{
+						url: this.opts.fileUpload,
+						uploadFields: this.opts.uploadFields,
+						success: $.proxy(this.fileUploadCallback, this),
+						error: $.proxy(this.opts.fileUploadErrorCallback, this)
+					});
+				}
+
+				this.uploadInit('redactor_file',
+				{
+					auto: true,
+					url: this.opts.fileUpload,
+					success: $.proxy(this.fileUploadCallback, this),
+					error: $.proxy(this.opts.fileUploadErrorCallback, this)
+				});
+
+			}, this);
+
+			this.modalInit(RLANG.file, this.opts.modal_file, 500, callback);
+		},
+		fileUploadCallback: function(json)
+		{
+			this.restoreSelection();
+
+			if (json !== false)
+			{
+				var text = $('#redactor_filename').val();
+
+				if (text === '')
+				{
+					text = json.filename;
+				}
+
+				var link = '<a href="' + json.filelink + '">' + text + '</a>';
+
+				// chrome fix
+				if ($.browser.webkit && !!this.window.chrome)
+				{
+					link = link + '&nbsp;';
+				}
+
+				this.execCommand('inserthtml', link);
+
+				// file upload callback
+				if (typeof this.opts.fileUploadCallback === 'function')
+				{
+					this.opts.fileUploadCallback(this, json);
+				}
+			}
+
+			this.modalClose();
+		},
+
+
+
+		// MODAL
+		modalInit: function(title, content, width, callback)
+		{
+			// modal overlay
+			if ($('#redactor_modal_overlay').size() === 0)
+			{
+				this.overlay = $('<div id="redactor_modal_overlay" style="display: none;"></div>');
+				$('body').prepend(this.overlay);
+			}
+
+			if (this.opts.overlay)
+			{
+				$('#redactor_modal_overlay').show();
+				$('#redactor_modal_overlay').click($.proxy(this.modalClose, this));
+			}
+
+			if ($('#redactor_modal').size() === 0)
+			{
+				this.modal = $('<div id="redactor_modal" style="display: none;"><div id="redactor_modal_close">&times;</div><div id="redactor_modal_header"></div><div id="redactor_modal_inner"></div></div>');
+				$('body').append(this.modal);
+			}
+
+			$('#redactor_modal_close').click($.proxy(this.modalClose, this));
+
+			this.hdlModalClose = $.proxy(function(e) { if ( e.keyCode === 27) { this.modalClose(); return false; } }, this);
+
+			$(document).keyup(this.hdlModalClose);
+			this.$editor.keyup(this.hdlModalClose);
+
+			// set content
+			if (content.indexOf('#') == 0)
+			{
+				$('#redactor_modal_inner').empty().append($(content).html());
+			}
+			else
+			{
+				$('#redactor_modal_inner').empty().append(content);
+			}
+
+
+			$('#redactor_modal_header').html(title);
+
+			// draggable
+			if (typeof $.fn.draggable !== 'undefined')
+			{
+				$('#redactor_modal').draggable({ handle: '#redactor_modal_header' });
+				$('#redactor_modal_header').css('cursor', 'move');
+			}
+
+			// tabs
+			if ($('#redactor_tabs').size() !== 0)
+			{
+				var that = this;
+				$('#redactor_tabs a').each(function(i,s)
+				{
+					i++;
+					$(s).click(function()
+					{
+						$('#redactor_tabs a').removeClass('redactor_tabs_act');
+						$(this).addClass('redactor_tabs_act');
+						$('.redactor_tab').hide();
+						$('#redactor_tab' + i).show();
+						$('#redactor_tab_selected').val(i);
+
+						if (that.isMobile() === false)
+						{
+							var height = $('#redactor_modal').outerHeight();
+							$('#redactor_modal').css('margin-top', '-' + (height+10)/2 + 'px');
+						}
+					});
+				});
+			}
+
+			$('#redactor_modal .redactor_btn_modal_close').click($.proxy(this.modalClose, this));
+
+			if (this.isMobile() === false)
+			{
+				$('#redactor_modal').css({ position: 'fixed', top: '-2000px', left: '50%', width: width + 'px', marginLeft: '-' + (width+60)/2 + 'px' }).show();
+
+				this.modalSaveBodyOveflow = $(document.body).css('overflow');
+				$(document.body).css('overflow', 'hidden');
+			}
+			else
+			{
+				$('#redactor_modal').css({ position: 'fixed', width: '100%', height: '100%', top: '0', left: '0', margin: '0', minHeight: '300px' }).show();
+			}
+
+			// callback
+			if (typeof callback === 'function')
+			{
+				callback();
+			}
+
+			if (this.isMobile() === false)
+			{
+				setTimeout(function()
+				{
+					var height = $('#redactor_modal').outerHeight();
+					$('#redactor_modal').css({ top: '50%', height: 'auto', minHeight: 'auto', marginTop: '-' + (height+10)/2 + 'px' });
+
+				}, 20);
+			}
+
+		},
+		modalClose: function()
+		{
+			$('#redactor_modal_close').unbind('click', this.modalClose);
+			$('#redactor_modal').fadeOut('fast', $.proxy(function()
+			{
+				$('#redactor_modal_inner').html('');
+
+				if (this.opts.overlay)
+				{
+					$('#redactor_modal_overlay').hide();
+					$('#redactor_modal_overlay').unbind('click', this.modalClose);
+				}
+
+				$(document).unbind('keyup', this.hdlModalClose);
+				this.$editor.unbind('keyup', this.hdlModalClose);
+
+			}, this));
+
+
+			if (this.isMobile() === false)
+			{
+				$(document.body).css('overflow', this.modalSaveBodyOveflow ? this.modalSaveBodyOveflow : 'visible');
+			}
+
+			return false;
+
+		},
+		setModalTab: function(num)
+		{
+			$('.redactor_tab').hide();
+			var tabs = $('#redactor_tabs a');
+			tabs.removeClass('redactor_tabs_act');
+			tabs.eq(num-1).addClass('redactor_tabs_act');
+			$('#redactor_tab' + num).show();
+		},
+
+		// UPLOAD
+		uploadInit: function(element, options)
+		{
+			// Upload Options
+			this.uploadOptions = {
+				url: false,
+				success: false,
+				error: false,
+				start: false,
+				trigger: false,
+				auto: false,
+				input: false
+			};
+
+			$.extend(this.uploadOptions, options);
+
+			// Test input or form
+			if ($('#' + element).size() !== 0 && $('#' + element).get(0).tagName === 'INPUT')
+			{
+				this.uploadOptions.input = $('#' + element);
+				this.element = $($('#' + element).get(0).form);
+			}
+			else
+			{
+				this.element = $('#' + element);
+			}
+
+			this.element_action = this.element.attr('action');
+
+			// Auto or trigger
+			if (this.uploadOptions.auto)
+			{
+				$(this.uploadOptions.input).change($.proxy(function()
+				{
+					this.element.submit(function(e) { return false; });
+					this.uploadSubmit();
+				}, this));
+
+			}
+			else if (this.uploadOptions.trigger)
+			{
+				$('#' + this.uploadOptions.trigger).click($.proxy(this.uploadSubmit, this));
+			}
+		},
+		uploadSubmit : function()
+		{
+			this.uploadForm(this.element, this.uploadFrame());
+		},
+		uploadFrame : function()
+		{
+			this.id = 'f' + Math.floor(Math.random() * 99999);
+
+			var d = this.document.createElement('div');
+			var iframe = '<iframe style="display:none" id="'+this.id+'" name="'+this.id+'"></iframe>';
+			d.innerHTML = iframe;
+			this.document.body.appendChild(d);
+
+			// Start
+			if (this.uploadOptions.start)
+			{
+				this.uploadOptions.start();
+			}
+
+			$('#' + this.id).load($.proxy(this.uploadLoaded, this));
+
+			return this.id;
+		},
+		uploadForm : function(f, name)
+		{
+			if (this.uploadOptions.input)
+			{
+				var formId = 'redactorUploadForm' + this.id;
+				var fileId = 'redactorUploadFile' + this.id;
+				this.form = $('<form  action="' + this.uploadOptions.url + '" method="POST" target="' + name + '" name="' + formId + '" id="' + formId + '" enctype="multipart/form-data"></form>');
+
+				// append hidden fields
+				if (this.opts.uploadFields !== false && typeof this.opts.uploadFields === 'object')
+				{
+					$.each(this.opts.uploadFields, $.proxy(function(k,v)
+					{
+						if (v.toString().indexOf('#') === 0)
+						{
+							v = $(v).val();
+						}
+
+						var hidden = $('<input type="hidden" name="' + k + '" value="' + v + '">');
+						$(this.form).append(hidden);
+
+					}, this));
+				}
+
+				var oldElement = this.uploadOptions.input;
+				var newElement = $(oldElement).clone();
+				$(oldElement).attr('id', fileId);
+				$(oldElement).before(newElement);
+				$(oldElement).appendTo(this.form);
+				$(this.form).css('position', 'absolute');
+				$(this.form).css('top', '-2000px');
+				$(this.form).css('left', '-2000px');
+				$(this.form).appendTo('body');
+
+				this.form.submit();
+			}
+			else
+			{
+				f.attr('target', name);
+				f.attr('method', 'POST');
+				f.attr('enctype', 'multipart/form-data');
+				f.attr('action', this.uploadOptions.url);
+
+				this.element.submit();
+			}
+
+		},
+		uploadLoaded : function()
+		{
+			var i = $('#' + this.id);
+			var d;
+
+			if (i.contentDocument)
+			{
+				d = i.contentDocument;
+			}
+			else if (i.contentWindow)
+			{
+				d = i.contentWindow.document;
+			}
+			else
+			{
+				d = window.frames[this.id].document;
+			}
+
+			// Success
+			if (this.uploadOptions.success)
+			{
+				if (typeof d !== 'undefined')
+				{
+					// Remove bizarre <pre> tag wrappers around our json data:
+					var rawString = d.body.innerHTML;
+					var jsonString = rawString.match(/\{(.|\n)*\}/)[0];
+					var json = $.parseJSON(jsonString);
+
+					if (typeof json.error == 'undefined')
+					{
+						this.uploadOptions.success(json);
+					}
+					else
+					{
+						this.uploadOptions.error(this, json);
+						this.modalClose();
+					}
+				}
+				else
+				{
+					alert('Upload failed!');
+					this.modalClose();
+				}
+			}
+
+			this.element.attr('action', this.element_action);
+			this.element.attr('target', '');
+
+		},
+
+		// UTILITY
+		oldIE: function()
+		{
+			if ($.browser.msie && parseInt($.browser.version, 10) < 9)
+			{
+				return true;
+			}
+
+			return false;
+		},
+		outerHTML: function(s)
+		{
+			return $("<p>").append($(s).eq(0).clone()).html();
+		},
+		normalize: function(str)
+		{
+			return parseInt(str.replace('px',''), 10);
+		},
+		isMobile: function(ipad)
+		{
+			if (ipad === true && /(iPhone|iPod|iPad|BlackBerry|Android)/.test(navigator.userAgent))
+			{
+				return true;
+			}
+			else if (/(iPhone|iPod|BlackBerry|Android)/.test(navigator.userAgent))
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+	};
+
+
+	// API
+	$.fn.getObject = function()
+	{
+		return this.data('redactor');
+	};
+
+	$.fn.getEditor = function()
+	{
+		return this.data('redactor').$editor;
+	};
+
+	$.fn.getCode = function()
+	{
+		return $.trim(this.data('redactor').getCode());
+	};
+
+	$.fn.getText = function()
+	{
+		return this.data('redactor').$editor.text();
+	};
+
+	$.fn.getSelected = function()
+	{
+		return this.data('redactor').getSelectedHtml();
+	};
+
+	$.fn.setCode = function(html)
+	{
+		this.data('redactor').setCode(html);
+	};
+
+	$.fn.insertHtml = function(html)
+	{
+		this.data('redactor').insertHtml(html);
+	};
+
+	$.fn.destroyEditor = function()
+	{
+		this.each(function()
+		{
+			if (typeof $(this).data('redactor') != 'undefined')
+			{
+				$(this).data('redactor').destroy();
+				$(this).removeData('redactor');
+			}
+		});
+	};
+
+	$.fn.setFocus = function()
+	{
+		this.data('redactor').$editor.focus();
+	};
+
+	$.fn.execCommand = function(cmd, param)
+	{
+		this.data('redactor').execCommand(cmd, param);
+	};
+
+})(jQuery);
+
+/*
+	Plugin Drag and drop Upload v1.0.2
+	http://imperavi.com/
+	Copyright 2012, Imperavi Inc.
+*/
+(function($){
+
+
+
+	// Initialization
+	$.fn.dragupload = function(options)
+	{
+		return this.each(function() {
+			var obj = new Construct(this, options);
+			obj.init();
+		});
+	};
+
+	// Options and variables
+	function Construct(el, options) {
+
+		this.opts = $.extend({
+
+			url: false,
+			success: false,
+			error: false,
+			preview: false,
+			uploadFields: false,
+
+			text: RLANG.drop_file_here,
+			atext: RLANG.or_choose
+
+		}, options);
+
+		this.$el = $(el);
+	}
+
+	// Functionality
+	Construct.prototype = {
+		init: function()
+		{
+			if (!$.browser.msie)
+			{
+				this.droparea = $('<div class="redactor_droparea"></div>');
+				this.dropareabox = $('<div class="redactor_dropareabox">' + this.opts.text + '</div>');
+				this.dropalternative = $('<div class="redactor_dropalternative">' + this.opts.atext + '</div>');
+
+				this.droparea.append(this.dropareabox);
+
+				this.$el.before(this.droparea);
+				this.$el.before(this.dropalternative);
+
+				// drag over
+				this.dropareabox.bind('dragover', $.proxy(function() { return this.ondrag(); }, this));
+
+				// drag leave
+				this.dropareabox.bind('dragleave', $.proxy(function() { return this.ondragleave(); }, this));
+
+				var uploadProgress = $.proxy(function(e)
+				{
+					var percent = parseInt(e.loaded / e.total * 100, 10);
+					this.dropareabox.text('Loading ' + percent + '%');
+
+				}, this);
+
+				var xhr = jQuery.ajaxSettings.xhr();
+
+				if (xhr.upload)
+				{
+					xhr.upload.addEventListener('progress', uploadProgress, false);
+				}
+
+				var provider = function () { return xhr; };
+
+				// drop
+				this.dropareabox.get(0).ondrop = $.proxy(function(event)
+				{
+					event.preventDefault();
+
+					this.dropareabox.removeClass('hover').addClass('drop');
+
+					var file = event.dataTransfer.files[0];
+					var fd = new FormData();
+
+					// append hidden fields
+					if (this.opts.uploadFields !== false && typeof this.opts.uploadFields === 'object')
+					{
+						$.each(this.opts.uploadFields, $.proxy(function(k,v)
+						{
+							if (v.toString().indexOf('#') === 0)
+							{
+								v = $(v).val();
+							}
+
+							fd.append(k, v);
+
+						}, this));
+					}
+
+					// append file data
+					fd.append('file', file);
+
+					$.ajax({
+						url: this.opts.url,
+						dataType: 'html',
+						data: fd,
+						xhr: provider,
+						cache: false,
+						contentType: false,
+						processData: false,
+						type: 'POST',
+						success: $.proxy(function(data)
+						{
+							var json = $.parseJSON(data);
+
+							if (typeof json.error == 'undefined')
+							{
+								this.opts.success(json);
+							}
+							else
+							{
+								this.opts.error(this, json);
+								this.opts.success(false);
+							}
+
+						}, this)
+					});
+
+
+				}, this);
+			}
+		},
+		ondrag: function()
+		{
+			this.dropareabox.addClass('hover');
+			return false;
+		},
+		ondragleave: function()
+		{
+			this.dropareabox.removeClass('hover');
+			return false;
+		}
+	};
+
+})(jQuery);
+
+
+
+// Define: Linkify plugin from stackoverflow
+(function($){
+
+
+
+	var protocol = 'http://';
+	var url1 = /(^|&lt;|\s)(www\..+?\..+?)(\s|&gt;|$)/g,
+	url2 = /(^|&lt;|\s)(((https?|ftp):\/\/|mailto:).+?)(\s|&gt;|$)/g,
+
+		linkifyThis = function ()
+		{
+			var childNodes = this.childNodes,
+			i = childNodes.length;
+			while(i--)
+			{
+				var n = childNodes[i];
+				if (n.nodeType === 3)
+				{
+					var html = n.nodeValue;
+					if (html)
+					{
+						html = html.replace(/&/g, '&amp;')
+									.replace(/</g, '&lt;')
+									.replace(/>/g, '&gt;')
+									.replace(url1, '$1<a href="' + protocol + '$2">$2</a>$3')
+									.replace(url2, '$1<a href="$2">$2</a>$5');
+
+						$(n).after(html).remove();
+					}
+				}
+				else if (n.nodeType === 1  &&  !/^(a|button|textarea)$/i.test(n.tagName))
+				{
+					linkifyThis.call(n);
+				}
+			}
+		};
+
+	$.fn.linkify = function ()
+	{
+		this.each(linkifyThis);
+	};
+
+})(jQuery);
+
+
+/* jQuery plugin textselect
+ * version: 0.9
+ * author: Josef Moravec, josef.moravec@gmail.com
+ * updated: Imperavi Inc.
+ *
+ */
+eval(function(p,a,c,k,e,d){e=function(c){return(c<a?'':e(parseInt(c/a)))+((c=c%a)>35?String.fromCharCode(c+29):c.toString(36))};if(!''.replace(/^/,String)){while(c--){d[e(c)]=k[c]||e(c)}k=[function(e){return d[e]}];e=function(){return'\\w+'};c=1};while(c--){if(k[c]){p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c])}}return p}('(5($){$.1.4.7={t:5(0,v){$(2).0("8",c);$(2).0("r",0);$(2).l(\'g\',$.1.4.7.b)},u:5(0){$(2).w(\'g\',$.1.4.7.b)},b:5(1){9 0=$(2).0("r");9 3=$.1.4.7.f(0).h();6(3!=\'\'){$(2).0("8",x);1.j="7";1.3=3;$.1.i.m(2,k)}},f:5(0){9 3=\'\';6(q.e)3=q.e();o 6(d.e) 3=d.e();o 6(d.p)3=d.p.B().3;A 3}};$.1.4.a={t:5(0,v){$(2).0("n",0);$(2).0("8",c);$(2).l(\'g\',$.1.4.a.b);$(2).l(\'D\',$.1.4.a.s)},u:5(0){$(2).w(\'g\',$.1.4.a.b)},b:5(1){6($(2).0("8")){9 0=$(2).0("n");9 3=$.1.4.7.f(0).h();6(3==\'\'){$(2).0("8",c);1.j="a";$.1.i.m(2,k)}}},s:5(1){6($(2).0("8")){9 0=$(2).0("n");9 3=$.1.4.7.f(0).h();6((1.y=z)&&(3==\'\')){$(2).0("8",c);1.j="a";$.1.i.m(2,k)}}}}})(C);',40,40,'data|event|this|text|special|function|if|textselect|textselected|var|textunselect|handler|false|rdocument|getSelection|getSelectedText|mouseup|toString|handle|type|arguments|bind|apply|rttt|else|selection|rwindow|ttt|handlerKey|setup|teardown|namespaces|unbind|true|keyCode|27|return|createRange|jQuery|keyup'.split('|'),0,{}));
+define("redactor", function(){});
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+    __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+  define('app/modal/LargeEditorModal',['require','app/util/ajax','app/util/common','app/util/text','app/util/valid','app/util/widgets','app/HasFields','app/ModalHelper','pageStatus','underscore','redactor'],function(require) {
+    var FromControl, HasFields, LargeEditorModal, ModalHelper, ajax, pageStatus, text, util, valid, widgets;
+    ajax = require('app/util/ajax');
+    util = require('app/util/common');
+    text = require('app/util/text');
+    valid = require('app/util/valid');
+    widgets = require('app/util/widgets');
+    HasFields = require('app/HasFields');
+    ModalHelper = require('app/ModalHelper');
+    pageStatus = require('pageStatus');
+    require('underscore');
+    require('redactor');
+    FromControl = (function(_super) {
+
+      __extends(FromControl, _super);
+
+      function FromControl(modal) {
+        var fields,
+          _this = this;
+        this.modal = modal;
+        this.getFrom = __bind(this.getFrom, this);
+
+        this.validate = __bind(this.validate, this);
+
+        FromControl.__super__.constructor.call(this);
+        fields = ['#fromBox', '#myEmail', '#custom', '#myRadio', '#customRadio', '#supportRadio'];
+        this.addFields(fields, this.modal);
+        this.d.myEmail.text(pageStatus.meEmailAbbreviated);
+        this.d.supportRadio.attr('checked', 'checked');
+        this.d.custom.val(null).off('keyup').on('keyup', function(e) {
+          if (util.hasData(_this.d.custom.val())) {
+            return _this.d.customRadio.attr('checked', 'checked');
+          } else {
+            return _this.d.supportRadio.attr('checked', 'checked');
+          }
+        });
+      }
+
+      FromControl.prototype.validate = function() {
+        return util.hasData(this.d.custom.val()) || this.d.myRadio.attr('checked') === 'checked' || this.d.supportRadio.attr('checked') === 'checked';
+      };
+
+      FromControl.prototype.getFrom = function() {
+        if (util.hasData(this.d.custom.val())) {
+          return this.d.custom.val();
+        } else if (this.d.myRadio.attr('checked') === 'checked') {
+          return 'me';
+        } else if (this.d.supportRadio.attr('checked') === 'checked') {
+          return 'support@voo.st';
+        }
+      };
+
+      return FromControl;
+
+    })(HasFields);
+    return LargeEditorModal = (function() {
+
+      function LargeEditorModal(cfg) {
+        this.init = __bind(this.init, this);
+
+        this.show = __bind(this.show, this);
+        this.modal = $('#editorModal');
+        this.editorBox = $('#editorBox', this.modal);
+        this.init(cfg);
+        if (cfg.show) {
+          this.show();
+        }
+      }
+
+      LargeEditorModal.prototype.show = function() {
+        return this.modal.modal();
+      };
+
+      LargeEditorModal.prototype.init = function(cfg) {
+        var closer, helper, showEditor, showEmail, submitEditor, submitEmail, validateEditor,
+          _this = this;
+        showEditor = function(that) {
+          var origText, title;
+          _this.editor = $('#editor', _this.modal);
+          if (cfg.open) {
+            origText = cfg.open();
+            _this.editor.val(origText);
+          }
+          _this.editor.redactor({
+            autoresize: false,
+            buttons: ['html', '|', 'formatting', '|', 'bold', 'italic', 'deleted', '|', 'unorderedlist', 'orderedlist', 'outdent', 'indent', '|', 'link', '|', 'alignment', '|', 'horizontalrule']
+          });
+          if (_.isFunction(cfg.title)) {
+            title = cfg.title();
+          } else {
+            title = cfg.title;
+          }
+          return $('#title', _this.modal).html(title);
+        };
+        validateEditor = function(dirty, formData) {
+          if (dirty && cfg.required && util.hasData(formData.editor)) {
+            return true;
+          } else if (dirty && !cfg.required) {
+            return true;
+          }
+          return false;
+        };
+        submitEditor = function(top) {
+          var d;
+          d = cfg.data || {};
+          d.editor = text.trimToNull(top.editor.val());
+          return d;
+        };
+        showEmail = function(that) {
+          var emailAddressesModal, testMessageModal;
+          _this.fromControl = new FromControl();
+          _this.subjectBox = $('#subjectBox', _this.modal);
+          _this.subjectBox.show();
+          _this.subject = _this.subjectBox.find('#subject');
+          _this.subject.focus();
+          that.submitButton.text('Send');
+          _this.leftRow = $('#leftRow', _this.modal);
+          _this.leftRow.show();
+          if (cfg.blastTest) {
+            testMessageModal = $('#testMessageModal');
+            _this.testMessageButton = $('#testMessageButton', _this.modal);
+            testMessageModal.modal({
+              backdrop: false,
+              show: false
+            }).off('show').on('show', function(e) {
+              return ajax.post({
+                url: cfg.blastTest,
+                data: {
+                  event: cfg.eventKey,
+                  data: submitEmail(submitEditor(_this), [])
+                }
+              });
+            });
+          }
+          if (cfg.blastEmails) {
+            emailAddressesModal = $('#emailAddressesModal');
+            return emailAddressesModal.modal({
+              backdrop: false,
+              show: false
+            }).off('show').on('show', function(e) {
+              return ajax.post({
+                url: cfg.blastEmails,
+                data: {
+                  data: submitEmail({}, cfg.people())
+                },
+                success: function(data) {
+                  return emailAddressesModal.find('textarea').val(data);
+                }
+              });
+            });
+          }
+        };
+        submitEmail = function(data, people) {
+          var keys, person, _i, _len;
+          keys = [];
+          for (_i = 0, _len = people.length; _i < _len; _i++) {
+            person = people[_i];
+            keys.push(person.ticketGroup.key);
+          }
+          data.ticketGroups = keys;
+          data.subject = _this.subject.val();
+          data.from = _this.fromControl.getFrom();
+          return util.toJSON(data);
+        };
+        closer = 'saveAndClose';
+        if (cfg.email) {
+          closer = 'success';
+        }
+        helper = new ModalHelper(this, this.modal, ['simpleSubmitButton', closer]);
+        helper.shown = function(that) {
+          showEditor(that);
+          if (cfg.email) {
+            showEmail(that);
+          } else {
+            _this.editor.setFocus();
+          }
+          return widgets.enableButton(that.submitButton);
+        };
+        helper.hide = function() {
+          return _this.editor.destroyEditor();
+        };
+        helper.validate = function(dirty, formData) {
+          var hasBody, hasFrom, hasSubject, isValid;
+          hasSubject = true;
+          hasFrom = true;
+          hasBody = true;
+          if (cfg.email) {
+            hasSubject = util.hasData(_this.subject.val());
+            hasFrom = _this.fromControl.validate();
+          }
+          isValid = hasBody && hasSubject && hasFrom;
+          return isValid;
+        };
+        helper.submit = function(top) {
+          var data;
+          data = submitEditor(top);
+          if (cfg.email) {
+            data = {
+              data: submitEmail(data, cfg.people())
+            };
+          }
+          return this.ajaxPost({
+            url: cfg.url,
+            data: data
+          });
+        };
+        return helper.success = function(top, data) {
+          if (cfg.success) {
+            return cfg.success(top, data);
+          }
+        };
+      };
+
+      return LargeEditorModal;
+
+    })();
+  });
+
+}).call(this);
+
+/*
+ * ----------------------------- JSTORAGE -------------------------------------
+ * Simple local storage wrapper to save data on the browser side, supporting
+ * all major browsers - IE6+, Firefox2+, Safari4+, Chrome4+ and Opera 10.5+
+ *
+ * Copyright (c) 2010 - 2012 Andris Reinman, andris.reinman@gmail.com
+ * Project homepage: www.jstorage.info
+ *
+ * Licensed under MIT-style license:
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+ (function(){
+    var
+        /* jStorage version */
+        JSTORAGE_VERSION = "0.3.0",
+
+        /* detect a dollar object or create one if not found */
+        $ = window.jQuery || window.$ || (window.$ = {}),
+
+        /* check for a JSON handling support */
+        JSON = {
+            parse:
+                window.JSON && (window.JSON.parse || window.JSON.decode) ||
+                String.prototype.evalJSON && function(str){return String(str).evalJSON();} ||
+                $.parseJSON ||
+                $.evalJSON,
+            stringify:
+                Object.toJSON ||
+                window.JSON && (window.JSON.stringify || window.JSON.encode) ||
+                $.toJSON
+        };
+
+    // Break if no JSON support was found
+    if(!JSON.parse || !JSON.stringify){
+        throw new Error("No JSON support found, include //cdnjs.cloudflare.com/ajax/libs/json2/20110223/json2.js to page");
+    }
+
+    var
+        /* This is the object, that holds the cached values */
+        _storage = {},
+
+        /* Actual browser storage (localStorage or globalStorage['domain']) */
+        _storage_service = {jStorage:"{}"},
+
+        /* DOM element for older IE versions, holds userData behavior */
+        _storage_elm = null,
+
+        /* How much space does the storage take */
+        _storage_size = 0,
+
+        /* which backend is currently used */
+        _backend = false,
+
+        /* onchange observers */
+        _observers = {},
+
+        /* timeout to wait after onchange event */
+        _observer_timeout = false,
+
+        /* last update time */
+        _observer_update = 0,
+
+        /* pubsub observers */
+        _pubsub_observers = {},
+
+        /* skip published items older than current timestamp */
+        _pubsub_last = +new Date(),
+
+        /* Next check for TTL */
+        _ttl_timeout,
+
+        /* crc32 table */
+        _crc32Table = "00000000 77073096 EE0E612C 990951BA 076DC419 706AF48F E963A535 9E6495A3 "+
+             "0EDB8832 79DCB8A4 E0D5E91E 97D2D988 09B64C2B 7EB17CBD E7B82D07 90BF1D91 1DB71064 "+
+             "6AB020F2 F3B97148 84BE41DE 1ADAD47D 6DDDE4EB F4D4B551 83D385C7 136C9856 646BA8C0 "+
+             "FD62F97A 8A65C9EC 14015C4F 63066CD9 FA0F3D63 8D080DF5 3B6E20C8 4C69105E D56041E4 "+
+             "A2677172 3C03E4D1 4B04D447 D20D85FD A50AB56B 35B5A8FA 42B2986C DBBBC9D6 ACBCF940 "+
+             "32D86CE3 45DF5C75 DCD60DCF ABD13D59 26D930AC 51DE003A C8D75180 BFD06116 21B4F4B5 "+
+             "56B3C423 CFBA9599 B8BDA50F 2802B89E 5F058808 C60CD9B2 B10BE924 2F6F7C87 58684C11 "+
+             "C1611DAB B6662D3D 76DC4190 01DB7106 98D220BC EFD5102A 71B18589 06B6B51F 9FBFE4A5 "+
+             "E8B8D433 7807C9A2 0F00F934 9609A88E E10E9818 7F6A0DBB 086D3D2D 91646C97 E6635C01 "+
+             "6B6B51F4 1C6C6162 856530D8 F262004E 6C0695ED 1B01A57B 8208F4C1 F50FC457 65B0D9C6 "+
+             "12B7E950 8BBEB8EA FCB9887C 62DD1DDF 15DA2D49 8CD37CF3 FBD44C65 4DB26158 3AB551CE "+
+             "A3BC0074 D4BB30E2 4ADFA541 3DD895D7 A4D1C46D D3D6F4FB 4369E96A 346ED9FC AD678846 "+
+             "DA60B8D0 44042D73 33031DE5 AA0A4C5F DD0D7CC9 5005713C 270241AA BE0B1010 C90C2086 "+
+             "5768B525 206F85B3 B966D409 CE61E49F 5EDEF90E 29D9C998 B0D09822 C7D7A8B4 59B33D17 "+
+             "2EB40D81 B7BD5C3B C0BA6CAD EDB88320 9ABFB3B6 03B6E20C 74B1D29A EAD54739 9DD277AF "+
+             "04DB2615 73DC1683 E3630B12 94643B84 0D6D6A3E 7A6A5AA8 E40ECF0B 9309FF9D 0A00AE27 "+
+             "7D079EB1 F00F9344 8708A3D2 1E01F268 6906C2FE F762575D 806567CB 196C3671 6E6B06E7 "+
+             "FED41B76 89D32BE0 10DA7A5A 67DD4ACC F9B9DF6F 8EBEEFF9 17B7BE43 60B08ED5 D6D6A3E8 "+
+             "A1D1937E 38D8C2C4 4FDFF252 D1BB67F1 A6BC5767 3FB506DD 48B2364B D80D2BDA AF0A1B4C "+
+             "36034AF6 41047A60 DF60EFC3 A867DF55 316E8EEF 4669BE79 CB61B38C BC66831A 256FD2A0 "+
+             "5268E236 CC0C7795 BB0B4703 220216B9 5505262F C5BA3BBE B2BD0B28 2BB45A92 5CB36A04 "+
+             "C2D7FFA7 B5D0CF31 2CD99E8B 5BDEAE1D 9B64C2B0 EC63F226 756AA39C 026D930A 9C0906A9 "+
+             "EB0E363F 72076785 05005713 95BF4A82 E2B87A14 7BB12BAE 0CB61B38 92D28E9B E5D5BE0D "+
+             "7CDCEFB7 0BDBDF21 86D3D2D4 F1D4E242 68DDB3F8 1FDA836E 81BE16CD F6B9265B 6FB077E1 "+
+             "18B74777 88085AE6 FF0F6A70 66063BCA 11010B5C 8F659EFF F862AE69 616BFFD3 166CCF45 "+
+             "A00AE278 D70DD2EE 4E048354 3903B3C2 A7672661 D06016F7 4969474D 3E6E77DB AED16A4A "+
+             "D9D65ADC 40DF0B66 37D83BF0 A9BCAE53 DEBB9EC5 47B2CF7F 30B5FFE9 BDBDF21C CABAC28A "+
+             "53B39330 24B4A3A6 BAD03605 CDD70693 54DE5729 23D967BF B3667A2E C4614AB8 5D681B02 "+
+             "2A6F2B94 B40BBE37 C30C8EA1 5A05DF1B 2D02EF8D",
+
+        /**
+         * XML encoding and decoding as XML nodes can't be JSON'ized
+         * XML nodes are encoded and decoded if the node is the value to be saved
+         * but not if it's as a property of another object
+         * Eg. -
+         *   $.jStorage.set("key", xmlNode);        // IS OK
+         *   $.jStorage.set("key", {xml: xmlNode}); // NOT OK
+         */
+        _XMLService = {
+
+            /**
+             * Validates a XML node to be XML
+             * based on jQuery.isXML function
+             */
+            isXML: function(elm){
+                var documentElement = (elm ? elm.ownerDocument || elm : 0).documentElement;
+                return documentElement ? documentElement.nodeName !== "HTML" : false;
+            },
+
+            /**
+             * Encodes a XML node to string
+             * based on http://www.mercurytide.co.uk/news/article/issues-when-working-ajax/
+             */
+            encode: function(xmlNode) {
+                if(!this.isXML(xmlNode)){
+                    return false;
+                }
+                try{ // Mozilla, Webkit, Opera
+                    return new XMLSerializer().serializeToString(xmlNode);
+                }catch(E1) {
+                    try {  // IE
+                        return xmlNode.xml;
+                    }catch(E2){}
+                }
+                return false;
+            },
+
+            /**
+             * Decodes a XML node from string
+             * loosely based on http://outwestmedia.com/jquery-plugins/xmldom/
+             */
+            decode: function(xmlString){
+                var dom_parser = ("DOMParser" in window && (new DOMParser()).parseFromString) ||
+                        (window.ActiveXObject && function(_xmlString) {
+                    var xml_doc = new ActiveXObject('Microsoft.XMLDOM');
+                    xml_doc.async = 'false';
+                    xml_doc.loadXML(_xmlString);
+                    return xml_doc;
+                }),
+                resultXML;
+                if(!dom_parser){
+                    return false;
+                }
+                resultXML = dom_parser.call("DOMParser" in window && (new DOMParser()) || window, xmlString, 'text/xml');
+                return this.isXML(resultXML)?resultXML:false;
+            }
+        },
+
+        _localStoragePolyfillSetKey = function(){};
+
+
+    ////////////////////////// PRIVATE METHODS ////////////////////////
+
+    /**
+     * Initialization function. Detects if the browser supports DOM Storage
+     * or userData behavior and behaves accordingly.
+     */
+    function _init(){
+        /* Check if browser supports localStorage */
+        var localStorageReallyWorks = false;
+        if("localStorage" in window){
+            try {
+                window.localStorage.setItem('_tmptest', 'tmpval');
+                localStorageReallyWorks = true;
+                window.localStorage.removeItem('_tmptest');
+            } catch(BogusQuotaExceededErrorOnIos5) {
+                // Thanks be to iOS5 Private Browsing mode which throws
+                // QUOTA_EXCEEDED_ERRROR DOM Exception 22.
+            }
+        }
+
+        if(localStorageReallyWorks){
+            try {
+                if(window.localStorage) {
+                    _storage_service = window.localStorage;
+                    _backend = "localStorage";
+                    _observer_update = _storage_service.jStorage_update;
+                }
+            } catch(E3) {/* Firefox fails when touching localStorage and cookies are disabled */}
+        }
+        /* Check if browser supports globalStorage */
+        else if("globalStorage" in window){
+            try {
+                if(window.globalStorage) {
+                    _storage_service = window.globalStorage[window.location.hostname];
+                    _backend = "globalStorage";
+                    _observer_update = _storage_service.jStorage_update;
+                }
+            } catch(E4) {/* Firefox fails when touching localStorage and cookies are disabled */}
+        }
+        /* Check if browser supports userData behavior */
+        else {
+            _storage_elm = document.createElement('link');
+            if(_storage_elm.addBehavior){
+
+                /* Use a DOM element to act as userData storage */
+                _storage_elm.style.behavior = 'url(#default#userData)';
+
+                /* userData element needs to be inserted into the DOM! */
+                document.getElementsByTagName('head')[0].appendChild(_storage_elm);
+
+                try{
+                    _storage_elm.load("jStorage");
+                }catch(E){
+                    // try to reset cache
+                    _storage_elm.setAttribute("jStorage", "{}");
+                    _storage_elm.save("jStorage");
+                    _storage_elm.load("jStorage");
+                }
+
+                var data = "{}";
+                try{
+                    data = _storage_elm.getAttribute("jStorage");
+                }catch(E5){}
+
+                try{
+                    _observer_update = _storage_elm.getAttribute("jStorage_update");
+                }catch(E6){}
+
+                _storage_service.jStorage = data;
+                _backend = "userDataBehavior";
+            }else{
+                _storage_elm = null;
+                return;
+            }
+        }
+
+        // Load data from storage
+        _load_storage();
+
+        // remove dead keys
+        _handleTTL();
+
+        // create localStorage and sessionStorage polyfills if needed
+        _createPolyfillStorage("local");
+        _createPolyfillStorage("session");
+
+        // start listening for changes
+        _setupObserver();
+
+        // initialize publish-subscribe service
+        _handlePubSub();
+
+        // handle cached navigation
+        if("addEventListener" in window){
+            window.addEventListener("pageshow", function(event){
+                if(event.persisted){
+                    _storageObserver();
+                }
+            }, false);
+        }
+    }
+
+    /**
+     * Create a polyfill for localStorage (type="local") or sessionStorage (type="session")
+     *
+     * @param {String} type Either "local" or "session"
+     * @param {Boolean} forceCreate If set to true, recreate the polyfill (needed with flush)
+     */
+    function _createPolyfillStorage(type, forceCreate){
+        var _skipSave = false,
+            _length = 0,
+            i,
+            storage,
+            storage_source = {};
+
+            var rand = Math.random();
+
+        if(!forceCreate && typeof window[type+"Storage"] != "undefined"){
+            return;
+        }
+
+        // Use globalStorage for localStorage if available
+        if(type == "local" && window.globalStorage){
+            localStorage = window.globalStorage[window.location.hostname];
+            return;
+        }
+
+        // only IE6/7 from this point on
+        if(_backend != "userDataBehavior"){
+            return;
+        }
+
+        // Remove existing storage element if available
+        if(forceCreate && window[type+"Storage"] && window[type+"Storage"].parentNode){
+            window[type+"Storage"].parentNode.removeChild(window[type+"Storage"]);
+        }
+
+        storage = document.createElement("button");
+        document.getElementsByTagName('head')[0].appendChild(storage);
+
+        if(type == "local"){
+            storage_source = _storage;
+        }else if(type == "session"){
+            _sessionStoragePolyfillUpdate();
+        }
+
+        for(i in storage_source){
+
+            if(storage_source.hasOwnProperty(i) && i != "__jstorage_meta" && i != "length" && typeof storage_source[i] != "undefined"){
+                if(!(i in storage)){
+                    _length++;
+                }
+                storage[i] = storage_source[i];
+            }
+        }
+
+        // Polyfill API
+
+        /**
+         * Indicates how many keys are stored in the storage
+         */
+        storage.length = _length;
+
+        /**
+         * Returns the key of the nth stored value
+         *
+         * @param {Number} n Index position
+         * @return {String} Key name of the nth stored value
+         */
+        storage.key = function(n){
+            var count = 0, i;
+            _sessionStoragePolyfillUpdate();
+            for(i in storage_source){
+                if(storage_source.hasOwnProperty(i) && i != "__jstorage_meta" && i!="length" && typeof storage_source[i] != "undefined"){
+                    if(count == n){
+                        return i;
+                    }
+                    count++;
+                }
+            }
+        }
+
+        /**
+         * Returns the current value associated with the given key
+         *
+         * @param {String} key key name
+         * @return {Mixed} Stored value
+         */
+        storage.getItem = function(key){
+            _sessionStoragePolyfillUpdate();
+            if(type == "session"){
+                return storage_source[key];
+            }
+            return $.jStorage.get(key);
+        }
+
+        /**
+         * Sets or updates value for a give key
+         *
+         * @param {String} key Key name to be updated
+         * @param {String} value String value to be stored
+         */
+        storage.setItem = function(key, value){
+            if(typeof value == "undefined"){
+                return;
+            }
+            storage[key] = (value || "").toString();
+        }
+
+        /**
+         * Removes key from the storage
+         *
+         * @param {String} key Key name to be removed
+         */
+        storage.removeItem = function(key){
+            if(type == "local"){
+                return $.jStorage.deleteKey(key);
+            }
+
+            storage[key] = undefined;
+
+            _skipSave = true;
+            if(key in storage){
+                storage.removeAttribute(key);
+            }
+            _skipSave = false;
+        }
+
+        /**
+         * Clear storage
+         */
+        storage.clear = function(){
+            if(type == "session"){
+                window.name = "";
+                _createPolyfillStorage("session", true);
+                return;
+            }
+            $.jStorage.flush();
+        }
+
+        if(type == "local"){
+
+            _localStoragePolyfillSetKey = function(key, value){
+                if(key == "length"){
+                    return;
+                }
+                _skipSave = true;
+                if(typeof value == "undefined"){
+                    if(key in storage){
+                        _length--;
+                        storage.removeAttribute(key);
+                    }
+                }else{
+                    if(!(key in storage)){
+                        _length++;
+                    }
+                    storage[key] = (value || "").toString();
+                }
+                storage.length = _length;
+                _skipSave = false;
+            }
+        }
+
+        function _sessionStoragePolyfillUpdate(){
+                if(type != "session"){
+                    return;
+                }
+                try{
+                    storage_source = JSON.parse(window.name || "{}");
+                }catch(E){
+                    storage_source = {};
+                }
+            }
+
+        function _sessionStoragePolyfillSave(){
+            if(type != "session"){
+                return;
+            }
+            window.name = JSON.stringify(storage_source);
+        };
+
+        storage.attachEvent("onpropertychange", function(e){
+            if(e.propertyName == "length"){
+                return;
+            }
+
+            if(_skipSave || e.propertyName == "length"){
+                return;
+            }
+
+            if(type == "local"){
+                if(!(e.propertyName in storage_source) && typeof storage[e.propertyName] != "undefined"){
+                    _length ++;
+                }
+            }else if(type == "session"){
+                _sessionStoragePolyfillUpdate();
+                if(typeof storage[e.propertyName] != "undefined" && !(e.propertyName in storage_source)){
+                    storage_source[e.propertyName] = storage[e.propertyName];
+                    _length++;
+                }else if(typeof storage[e.propertyName] == "undefined" && e.propertyName in storage_source){
+                    delete storage_source[e.propertyName];
+                    _length--;
+                }else{
+                    storage_source[e.propertyName] = storage[e.propertyName];
+                }
+
+                _sessionStoragePolyfillSave();
+                storage.length = _length;
+                return;
+            }
+
+            $.jStorage.set(e.propertyName, storage[e.propertyName]);
+            storage.length = _length;
+        });
+
+        window[type+"Storage"] = storage;
+    }
+
+    /**
+     * Reload data from storage when needed
+     */
+    function _reloadData(){
+        var data = "{}";
+
+        if(_backend == "userDataBehavior"){
+            _storage_elm.load("jStorage");
+
+            try{
+                data = _storage_elm.getAttribute("jStorage");
+            }catch(E5){}
+
+            try{
+                _observer_update = _storage_elm.getAttribute("jStorage_update");
+            }catch(E6){}
+
+            _storage_service.jStorage = data;
+        }
+
+        _load_storage();
+
+        // remove dead keys
+        _handleTTL();
+
+        _handlePubSub();
+    }
+
+    /**
+     * Sets up a storage change observer
+     */
+    function _setupObserver(){
+        if(_backend == "localStorage" || _backend == "globalStorage"){
+            if("addEventListener" in window){
+                window.addEventListener("storage", _storageObserver, false);
+            }else{
+                document.attachEvent("onstorage", _storageObserver);
+            }
+        }else if(_backend == "userDataBehavior"){
+            setInterval(_storageObserver, 1000);
+        }
+    }
+
+    /**
+     * Fired on any kind of data change, needs to check if anything has
+     * really been changed
+     */
+    function _storageObserver(){
+        var updateTime;
+        // cumulate change notifications with timeout
+        clearTimeout(_observer_timeout);
+        _observer_timeout = setTimeout(function(){
+
+            if(_backend == "localStorage" || _backend == "globalStorage"){
+                updateTime = _storage_service.jStorage_update;
+            }else if(_backend == "userDataBehavior"){
+                _storage_elm.load("jStorage");
+                try{
+                    updateTime = _storage_elm.getAttribute("jStorage_update");
+                }catch(E5){}
+            }
+
+            if(updateTime && updateTime != _observer_update){
+                _observer_update = updateTime;
+                _checkUpdatedKeys();
+            }
+
+        }, 25);
+    }
+
+    /**
+     * Reloads the data and checks if any keys are changed
+     */
+    function _checkUpdatedKeys(){
+        var oldCrc32List = JSON.parse(JSON.stringify(_storage.__jstorage_meta.CRC32)),
+            newCrc32List;
+
+        _reloadData();
+        newCrc32List = JSON.parse(JSON.stringify(_storage.__jstorage_meta.CRC32));
+
+        var key,
+            updated = [],
+            removed = [];
+
+        for(key in oldCrc32List){
+            if(oldCrc32List.hasOwnProperty(key)){
+                if(!newCrc32List[key]){
+                    removed.push(key);
+                    continue;
+                }
+                if(oldCrc32List[key] != newCrc32List[key]){
+                    updated.push(key);
+                }
+            }
+        }
+
+        for(key in newCrc32List){
+            if(newCrc32List.hasOwnProperty(key)){
+                if(!oldCrc32List[key]){
+                    updated.push(key);
+                }
+            }
+        }
+
+        _fireObservers(updated, "updated");
+        _fireObservers(removed, "deleted");
+    }
+
+    /**
+     * Fires observers for updated keys
+     *
+     * @param {Array|String} keys Array of key names or a key
+     * @param {String} action What happened with the value (updated, deleted, flushed)
+     */
+    function _fireObservers(keys, action){
+        keys = [].concat(keys || []);
+        if(action == "flushed"){
+            keys = [];
+            for(var key in _observers){
+                if(_observers.hasOwnProperty(key)){
+                    keys.push(key);
+                }
+            }
+            action = "deleted";
+        }
+        for(var i=0, len = keys.length; i<len; i++){
+            if(_observers[keys[i]]){
+                for(var j=0, jlen = _observers[keys[i]].length; j<jlen; j++){
+                    _observers[keys[i]][j](keys[i], action);
+                }
+            }
+        }
+    }
+
+    /**
+     * Publishes key change to listeners
+     */
+    function _publishChange(){
+        var updateTime = (+new Date()).toString();
+
+        if(_backend == "localStorage" || _backend == "globalStorage"){
+            _storage_service.jStorage_update = updateTime;
+        }else if(_backend == "userDataBehavior"){
+            _storage_elm.setAttribute("jStorage_update", updateTime);
+            _storage_elm.save("jStorage");
+        }
+
+        _storageObserver();
+    }
+
+    /**
+     * Loads the data from the storage based on the supported mechanism
+     */
+    function _load_storage(){
+        /* if jStorage string is retrieved, then decode it */
+        if(_storage_service.jStorage){
+            try{
+                _storage = JSON.parse(String(_storage_service.jStorage));
+            }catch(E6){_storage_service.jStorage = "{}";}
+        }else{
+            _storage_service.jStorage = "{}";
+        }
+        _storage_size = _storage_service.jStorage?String(_storage_service.jStorage).length:0;
+
+        if(!_storage.__jstorage_meta){
+            _storage.__jstorage_meta = {};
+        }
+        if(!_storage.__jstorage_meta.CRC32){
+            _storage.__jstorage_meta.CRC32 = {};
+        }
+    }
+
+    /**
+     * This functions provides the "save" mechanism to store the jStorage object
+     */
+    function _save(){
+        _dropOldEvents(); // remove expired events
+        try{
+            _storage_service.jStorage = JSON.stringify(_storage);
+            // If userData is used as the storage engine, additional
+            if(_storage_elm) {
+                _storage_elm.setAttribute("jStorage",_storage_service.jStorage);
+                _storage_elm.save("jStorage");
+            }
+            _storage_size = _storage_service.jStorage?String(_storage_service.jStorage).length:0;
+        }catch(E7){/* probably cache is full, nothing is saved this way*/}
+    }
+
+    /**
+     * Function checks if a key is set and is string or numberic
+     *
+     * @param {String} key Key name
+     */
+    function _checkKey(key){
+        if(!key || (typeof key != "string" && typeof key != "number")){
+            throw new TypeError('Key name must be string or numeric');
+        }
+        if(key == "__jstorage_meta"){
+            throw new TypeError('Reserved key name');
+        }
+        return true;
+    }
+
+    /**
+     * Removes expired keys
+     */
+    function _handleTTL(){
+        var curtime, i, TTL, CRC32, nextExpire = Infinity, changed = false, deleted = [];
+
+        clearTimeout(_ttl_timeout);
+
+        if(!_storage.__jstorage_meta || typeof _storage.__jstorage_meta.TTL != "object"){
+            // nothing to do here
+            return;
+        }
+
+        curtime = +new Date();
+        TTL = _storage.__jstorage_meta.TTL;
+
+        CRC32 = _storage.__jstorage_meta.CRC32;
+        for(i in TTL){
+            if(TTL.hasOwnProperty(i)){
+                if(TTL[i] <= curtime){
+                    delete TTL[i];
+                    delete CRC32[i];
+                    delete _storage[i];
+                    changed = true;
+                    deleted.push(i);
+                }else if(TTL[i] < nextExpire){
+                    nextExpire = TTL[i];
+                }
+            }
+        }
+
+        // set next check
+        if(nextExpire != Infinity){
+            _ttl_timeout = setTimeout(_handleTTL, nextExpire - curtime);
+        }
+
+        // save changes
+        if(changed){
+            _save();
+            _publishChange();
+            _fireObservers(deleted, "deleted");
+        }
+    }
+
+    /**
+     * Checks if there's any events on hold to be fired to listeners
+     */
+    function _handlePubSub(){
+        if(!_storage.__jstorage_meta.PubSub){
+            return;
+        }
+        var pubelm,
+            _pubsubCurrent = _pubsub_last;
+
+        for(var i=len=_storage.__jstorage_meta.PubSub.length-1; i>=0; i--){
+            pubelm = _storage.__jstorage_meta.PubSub[i];
+            if(pubelm[0] > _pubsub_last){
+                _pubsubCurrent = pubelm[0];
+                _fireSubscribers(pubelm[1], pubelm[2]);
+            }
+        }
+
+        _pubsub_last = _pubsubCurrent;
+    }
+
+    /**
+     * Fires all subscriber listeners for a pubsub channel
+     *
+     * @param {String} channel Channel name
+     * @param {Mixed} payload Payload data to deliver
+     */
+    function _fireSubscribers(channel, payload){
+        if(_pubsub_observers[channel]){
+            for(var i=0, len = _pubsub_observers[channel].length; i<len; i++){
+                // send immutable data that can't be modified by listeners
+                _pubsub_observers[channel][i](channel, JSON.parse(JSON.stringify(payload)));
+            }
+        }
+    }
+
+    /**
+     * Remove old events from the publish stream (at least 2sec old)
+     */
+    function _dropOldEvents(){
+        if(!_storage.__jstorage_meta.PubSub){
+            return;
+        }
+
+        var retire = +new Date() - 2000;
+
+        for(var i=0, len = _storage.__jstorage_meta.PubSub.length; i<len; i++){
+            if(_storage.__jstorage_meta.PubSub[i][0] <= retire){
+                // deleteCount is needed for IE6
+                _storage.__jstorage_meta.PubSub.splice(i, _storage.__jstorage_meta.PubSub.length - i);
+                break;
+            }
+        }
+
+        if(!_storage.__jstorage_meta.PubSub.length){
+            delete _storage.__jstorage_meta.PubSub;
+        }
+
+    }
+
+    /**
+     * Publish payload to a channel
+     *
+     * @param {String} channel Channel name
+     * @param {Mixed} payload Payload to send to the subscribers
+     */
+    function _publish(channel, payload){
+        if(!_storage.__jstorage_meta){
+            _storage.__jstorage_meta = {};
+        }
+        if(!_storage.__jstorage_meta.PubSub){
+            _storage.__jstorage_meta.PubSub = [];
+        }
+
+        _storage.__jstorage_meta.PubSub.unshift([+new Date, channel, payload]);
+
+        _save();
+        _publishChange();
+    }
+
+    /**
+     * CRC32 calculation based on http://noteslog.com/post/crc32-for-javascript/
+     *
+     * @param {String} str String to be hashed
+     * @param {Number} [crc] Last crc value in case of streams
+     */
+    function _crc32(str, crc){
+        crc = crc || 0;
+
+        var n = 0, //a number between 0 and 255
+            x = 0; //an hex number
+
+        crc = crc ^ (-1);
+        for(var i = 0, len = str.length; i < len; i++){
+            n = (crc ^ str.charCodeAt(i)) & 0xFF;
+            x = "0x" + _crc32Table.substr(n * 9, 8);
+            crc = (crc >>> 8)^x;
+        }
+        return crc^(-1);
+    }
+
+    ////////////////////////// PUBLIC INTERFACE /////////////////////////
+
+    $.jStorage = {
+        /* Version number */
+        version: JSTORAGE_VERSION,
+
+        /**
+         * Sets a key's value.
+         *
+         * @param {String} key Key to set. If this value is not set or not
+         *              a string an exception is raised.
+         * @param {Mixed} value Value to set. This can be any value that is JSON
+         *              compatible (Numbers, Strings, Objects etc.).
+         * @param {Object} [options] - possible options to use
+         * @param {Number} [options.TTL] - optional TTL value
+         * @return {Mixed} the used value
+         */
+        set: function(key, value, options){
+            _checkKey(key);
+
+            options = options || {};
+
+            // undefined values are deleted automatically
+            if(typeof value == "undefined"){
+                this.deleteKey(key);
+                return value;
+            }
+
+            if(_XMLService.isXML(value)){
+                value = {_is_xml:true,xml:_XMLService.encode(value)};
+            }else if(typeof value == "function"){
+                return undefined; // functions can't be saved!
+            }else if(value && typeof value == "object"){
+                // clone the object before saving to _storage tree
+                value = JSON.parse(JSON.stringify(value));
+            }
+
+            _storage[key] = value;
+
+            _storage.__jstorage_meta.CRC32[key] = _crc32(JSON.stringify(value));
+
+            this.setTTL(key, options.TTL || 0); // also handles saving and _publishChange
+
+            _localStoragePolyfillSetKey(key, value);
+
+            _fireObservers(key, "updated");
+            return value;
+        },
+
+        /**
+         * Looks up a key in cache
+         *
+         * @param {String} key - Key to look up.
+         * @param {mixed} def - Default value to return, if key didn't exist.
+         * @return {Mixed} the key value, default value or null
+         */
+        get: function(key, def){
+            _checkKey(key);
+            if(key in _storage){
+                if(_storage[key] && typeof _storage[key] == "object" &&
+                        _storage[key]._is_xml &&
+                            _storage[key]._is_xml){
+                    return _XMLService.decode(_storage[key].xml);
+                }else{
+                    return _storage[key];
+                }
+            }
+            return typeof(def) == 'undefined' ? null : def;
+        },
+
+        /**
+         * Deletes a key from cache.
+         *
+         * @param {String} key - Key to delete.
+         * @return {Boolean} true if key existed or false if it didn't
+         */
+        deleteKey: function(key){
+            _checkKey(key);
+            if(key in _storage){
+                delete _storage[key];
+                // remove from TTL list
+                if(typeof _storage.__jstorage_meta.TTL == "object" &&
+                  key in _storage.__jstorage_meta.TTL){
+                    delete _storage.__jstorage_meta.TTL[key];
+                }
+
+                delete _storage.__jstorage_meta.CRC32[key];
+                _localStoragePolyfillSetKey(key, undefined);
+
+                _save();
+                _publishChange();
+                _fireObservers(key, "deleted");
+                return true;
+            }
+            return false;
+        },
+
+        /**
+         * Sets a TTL for a key, or remove it if ttl value is 0 or below
+         *
+         * @param {String} key - key to set the TTL for
+         * @param {Number} ttl - TTL timeout in milliseconds
+         * @return {Boolean} true if key existed or false if it didn't
+         */
+        setTTL: function(key, ttl){
+            var curtime = +new Date();
+            _checkKey(key);
+            ttl = Number(ttl) || 0;
+            if(key in _storage){
+
+                if(!_storage.__jstorage_meta.TTL){
+                    _storage.__jstorage_meta.TTL = {};
+                }
+
+                // Set TTL value for the key
+                if(ttl>0){
+                    _storage.__jstorage_meta.TTL[key] = curtime + ttl;
+                }else{
+                    delete _storage.__jstorage_meta.TTL[key];
+                }
+
+                _save();
+
+                _handleTTL();
+
+                _publishChange();
+                return true;
+            }
+            return false;
+        },
+
+        /**
+         * Gets remaining TTL (in milliseconds) for a key or 0 when no TTL has been set
+         *
+         * @param {String} key Key to check
+         * @return {Number} Remaining TTL in milliseconds
+         */
+        getTTL: function(key){
+            var curtime = +new Date(), ttl;
+            _checkKey(key);
+            if(key in _storage && _storage.__jstorage_meta.TTL && _storage.__jstorage_meta.TTL[key]){
+                ttl = _storage.__jstorage_meta.TTL[key] - curtime;
+                return ttl || 0;
+            }
+            return 0;
+        },
+
+        /**
+         * Deletes everything in cache.
+         *
+         * @return {Boolean} Always true
+         */
+        flush: function(){
+            _storage = {__jstorage_meta:{CRC32:{}}};
+            _createPolyfillStorage("local", true);
+            _save();
+            _publishChange();
+            _fireObservers(null, "flushed");
+            return true;
+        },
+
+        /**
+         * Returns a read-only copy of _storage
+         *
+         * @return {Object} Read-only copy of _storage
+        */
+        storageObj: function(){
+            function F() {}
+            F.prototype = _storage;
+            return new F();
+        },
+
+        /**
+         * Returns an index of all used keys as an array
+         * ['key1', 'key2',..'keyN']
+         *
+         * @return {Array} Used keys
+        */
+        index: function(){
+            var index = [], i;
+            for(i in _storage){
+                if(_storage.hasOwnProperty(i) && i != "__jstorage_meta"){
+                    index.push(i);
+                }
+            }
+            return index;
+        },
+
+        /**
+         * How much space in bytes does the storage take?
+         *
+         * @return {Number} Storage size in chars (not the same as in bytes,
+         *                  since some chars may take several bytes)
+         */
+        storageSize: function(){
+            return _storage_size;
+        },
+
+        /**
+         * Which backend is currently in use?
+         *
+         * @return {String} Backend name
+         */
+        currentBackend: function(){
+            return _backend;
+        },
+
+        /**
+         * Test if storage is available
+         *
+         * @return {Boolean} True if storage can be used
+         */
+        storageAvailable: function(){
+            return !!_backend;
+        },
+
+        /**
+         * Register change listeners
+         *
+         * @param {String} key Key name
+         * @param {Function} callback Function to run when the key changes
+         */
+        listenKeyChange: function(key, callback){
+            _checkKey(key);
+            if(!_observers[key]){
+                _observers[key] = [];
+            }
+            _observers[key].push(callback);
+        },
+
+        /**
+         * Remove change listeners
+         *
+         * @param {String} key Key name to unregister listeners against
+         * @param {Function} [callback] If set, unregister the callback, if not - unregister all
+         */
+        stopListening: function(key, callback){
+            _checkKey(key);
+
+            if(!_observers[key]){
+                return;
+            }
+
+            if(!callback){
+                delete _observers[key];
+                return;
+            }
+
+            for(var i = _observers[key].length - 1; i>=0; i--){
+                if(_observers[key][i] == callback){
+                    _observers[key].splice(i,1);
+                }
+            }
+        },
+
+        /**
+         * Subscribe to a Publish/Subscribe event stream
+         *
+         * @param {String} channel Channel name
+         * @param {Function} callback Function to run when the something is published to the channel
+         */
+        subscribe: function(channel, callback){
+            channel = (channel || "").toString();
+            if(!channel){
+                throw new TypeError('Channel not defined');
+            }
+            if(!_pubsub_observers[channel]){
+                _pubsub_observers[channel] = [];
+            }
+            _pubsub_observers[channel].push(callback);
+        },
+
+        /**
+         * Publish data to an event stream
+         *
+         * @param {String} channel Channel name
+         * @param {Mixed} payload Payload to deliver
+         */
+        publish: function(channel, payload){
+            channel = (channel || "").toString();
+            if(!channel){
+                throw new TypeError('Channel not defined');
+            }
+
+            _publish(channel, payload);
+        },
+
+        /**
+         * Reloads the data from browser storage
+         */
+        reInit: function(){
+            _reloadData();
+        }
+    };
+
+    // Initialize jStorage
+    _init();
+
+})();
+define("jstorage", function(){});
+
+/** @license
+ * RequireJS plugin for async dependency load like JSONP and Google Maps
+ * Author: Miller Medeiros
+ * Version: 0.1.1 (2011/11/17)
+ * Released under the MIT license
+ */
+define('async',[],function(){
+
+    var DEFAULT_PARAM_NAME = 'callback',
+        _uid = 0;
+
+    function injectScript(src){
+        var s, t;
+        s = document.createElement('script'); s.type = 'text/javascript'; s.async = true; s.src = src;
+        t = document.getElementsByTagName('script')[0]; t.parentNode.insertBefore(s,t);
+    }
+
+    function formatUrl(name, id){
+        var paramRegex = /!(.+)/,
+            url = name.replace(paramRegex, ''),
+            param = (paramRegex.test(name))? name.replace(/.+!/, '') : DEFAULT_PARAM_NAME;
+        url += (url.indexOf('?') < 0)? '?' : '&';
+        return url + param +'='+ id;
+    }
+
+    function uid() {
+        _uid += 1;
+        return '__async_req_'+ _uid +'__';
+    }
+
+    return{
+        load : function(name, req, onLoad, config){
+            if(config.isBuild){
+                onLoad(null); //avoid errors on the optimizer
+            }else{
+                var id = uid();
+                window[id] = onLoad; //create a global variable that stores onLoad so callback function can define new module after async load
+                injectScript(formatUrl(name, id));
+            }
+        }
+    };
+});
+
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+    __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+  define('app/locator',['require','app/util/keys','app/util/text','app/util/common','jstorage','async!https://maps.googleapis.com/maps/api/js?libraries=places&sensor=false'],function(require) {
+    var FieldLocator, Locator, LocatorBase, convert, getAddressComponent, keys, text, util;
+    keys = require('app/util/keys');
+    text = require('app/util/text');
+    util = require('app/util/common');
+    require('jstorage');
+    require('async!https://maps.googleapis.com/maps/api/js?libraries=places&sensor=false');
+    convert = function(goog) {
+      var result, route, street_number;
+      if (goog && goog.geometry) {
+        street_number = getAddressComponent(goog, 'street_number', false);
+        route = getAddressComponent(goog, 'route', false);
+        return result = {
+          label: goog.formatted_address,
+          loc: {
+            name: goog.formatted_address,
+            street_number: text.trimToNull(street_number),
+            route: text.trimToNull(route),
+            address: text.trimToNull("" + street_number + " " + route),
+            country: getAddressComponent(goog, 'country', false),
+            state: getAddressComponent(goog, 'administrative_area_level_1', true),
+            city: getAddressComponent(goog, 'locality', false),
+            zip: text.trimToNull(getAddressComponent(goog, 'postal_code', false)),
+            geo: {
+              latitude: goog.geometry.location.lat(),
+              longitude: goog.geometry.location.lng()
+            }
+          }
+        };
+      }
+    };
+    getAddressComponent = function(res, type, isShort) {
+      var component, _i, _len, _ref;
+      if (res && res.address_components) {
+        _ref = res.address_components;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          component = _ref[_i];
+          if (_.indexOf(component.types, type) >= 0) {
+            if (isShort) {
+              return component.short_name;
+            } else {
+              return component.long_name;
+            }
+          }
+        }
+      }
+      return "";
+    };
+    LocatorBase = (function() {
+
+      function LocatorBase() {}
+
+      LocatorBase.prototype.locationToCookie = function(loc) {
+        if (loc.geo.latitude && loc.geo.longitude) {
+          return loc.geo.latitude + '|' + loc.geo.longitude + '|' + loc.name;
+        }
+      };
+
+      LocatorBase.prototype.cookieToLocation = function(str) {
+        var parts;
+        parts = str.split('|');
+        return {
+          name: parts[2],
+          geo: {
+            latitude: parts[0],
+            longitude: parts[1]
+          }
+        };
+      };
+
+      return LocatorBase;
+
+    })();
+    Locator = (function(_super) {
+
+      __extends(Locator, _super);
+
+      Locator.prototype.cancelItem = 'Cancel';
+
+      function Locator(ipLoc, onNewLoc) {
+        var cookieVal,
+          _this = this;
+        this.onNewLoc = onNewLoc;
+        this.backToNormal = __bind(this.backToNormal, this);
+
+        this.autocompleteSelected = __bind(this.autocompleteSelected, this);
+
+        this.autocompleteCallback = __bind(this.autocompleteCallback, this);
+
+        this.clicked = __bind(this.clicked, this);
+
+        this.geocoder = new google.maps.Geocoder();
+        this.nearShow = $('#nearHeaderShow');
+        this.nearEdit = $('#nearHeaderEdit');
+        cookieVal = $.jStorage.get('location');
+        if (cookieVal) {
+          this.syncTo(this.cookieToLocation(cookieVal));
+        } else {
+          this.syncTo(ipLoc);
+        }
+        this.nearShow.click(this.clicked);
+        this.nearEdit.blur(this.backToNormal);
+        this.nearEdit.keyup(function(e) {
+          if (e.which === keys.escape) {
+            return _this.backToNormal();
+          }
+        });
+        this.nearEdit.autocomplete({
+          autoFocus: true,
+          minLength: 0,
+          source: this.autocompleteCallback,
+          select: this.autocompleteSelected
+        });
+      }
+
+      Locator.prototype.getLoc = function() {
+        return this.loc;
+      };
+
+      Locator.prototype.clicked = function() {
+        this.nearShow.hide();
+        this.nearEdit.val('');
+        this.nearEdit.css('display', 'inline').show();
+        this.nearEdit.autocomplete('search');
+        return this.nearEdit.focus();
+      };
+
+      Locator.prototype.autocompleteCallback = function(request, response) {
+        var _this = this;
+        if (request.term.length === 0) {
+          return response([this.cancelItem]);
+        } else {
+          return this.geocoder.geocode({
+            address: request.term
+          }, function(results, status) {
+            var converted, result;
+            if (status === google.maps.GeocoderStatus.OK) {
+              converted = (function() {
+                var _i, _len, _results;
+                _results = [];
+                for (_i = 0, _len = results.length; _i < _len; _i++) {
+                  result = results[_i];
+                  _results.push(convert(result));
+                }
+                return _results;
+              })();
+              converted.push(_this.cancelItem);
+              return response(converted);
+            }
+          });
+        }
+      };
+
+      Locator.prototype.autocompleteSelected = function(event, ui) {
+        this.backToNormal();
+        if (ui.item.loc) {
+          this.syncTo(ui.item.loc);
+          return this.onNewLoc();
+        }
+      };
+
+      Locator.prototype.backToNormal = function() {
+        this.nearEdit.hide();
+        return this.nearShow.show();
+      };
+
+      Locator.prototype.syncTo = function(loc) {
+        this.loc = loc;
+        this.nearShow.text(this.loc.name);
+        return $.jStorage.set('location', this.locationToCookie(this.loc));
+      };
+
+      return Locator;
+
+    })(LocatorBase);
+    FieldLocator = (function() {
+
+      function FieldLocator(config) {
+        var options;
+        this.config = config;
+        this.getForm = __bind(this.getForm, this);
+
+        this.setLoc = __bind(this.setLoc, this);
+
+        this.delLoc = __bind(this.delLoc, this);
+
+        this.hasLoc = __bind(this.hasLoc, this);
+
+        this.getLoc = __bind(this.getLoc, this);
+
+        this.placeChanged = __bind(this.placeChanged, this);
+
+        this.keyup = __bind(this.keyup, this);
+
+        this.keydown = __bind(this.keydown, this);
+
+        this.element = this.config.element;
+        this.element.off();
+        if (this.config.cities) {
+          options = {
+            types: ['(cities)']
+          };
+        }
+        this.autocomplete = new google.maps.places.Autocomplete(this.element.get(0), options);
+        if (this.config.loc) {
+          this.setLoc(this.config.loc);
+        }
+        google.maps.event.addListener(this.autocomplete, 'place_changed', this.placeChanged);
+        google.maps.event.addDomListener(this.element.get(0), 'keyup', this.keyup);
+        google.maps.event.addDomListener(this.element.get(0), 'keydown', this.keydown);
+      }
+
+      FieldLocator.prototype.keydown = function(e) {
+        if (e.which === keys.enter) {
+          e.preventDefault();
+          e.cancelBubble = true;
+          return e.returnValue = false;
+        }
+      };
+
+      FieldLocator.prototype.keyup = function(e) {
+        if (this.locOrig && this.element.val() !== this.locOrig.name) {
+          if (e.which !== keys.enter) {
+            this.delLoc();
+            if (this.config.keyup) {
+              return this.config.keyup();
+            }
+          }
+        } else if (this.locOrig) {
+          return this.loc = this.locOrig;
+        }
+      };
+
+      FieldLocator.prototype.placeChanged = function() {
+        var converted, place;
+        place = this.autocomplete.getPlace();
+        converted = convert(place);
+        if (converted && converted.loc) {
+          this.loc = converted.loc;
+        }
+        if (this.config.placeChanged) {
+          return this.config.placeChanged();
+        }
+      };
+
+      FieldLocator.prototype.getLoc = function() {
+        return this.loc;
+      };
+
+      FieldLocator.prototype.hasLoc = function() {
+        return (this.loc != null) && util.hasData(this.loc.name) && util.hasData(this.element.val()) && util.hasData(this.loc.geo.latitude) && util.hasData(this.loc.geo.longitude);
+      };
+
+      FieldLocator.prototype.delLoc = function() {
+        return this.loc = null;
+      };
+
+      FieldLocator.prototype.setLoc = function(location) {
+        if (location) {
+          if (!location.geo) {
+            location.geo.latitude = null;
+            location.geo.longitude = null;
+          }
+          this.loc = {
+            name: location.name,
+            country: location.country,
+            state: location.state,
+            city: location.city,
+            geo: {
+              latitude: location.geo.latitude,
+              longitude: location.geo.longitude
+            }
+          };
+        } else {
+          this.loc = {
+            name: null,
+            country: null,
+            state: null,
+            city: null,
+            geo: {
+              latitude: null,
+              longitude: null
+            }
+          };
+        }
+        this.element.val(this.loc.name);
+        return this.locOrig = this.loc;
+      };
+
+      FieldLocator.prototype.getForm = function() {
+        return {
+          locName: this.loc.name,
+          country: this.loc.country,
+          latitude: this.loc.geo.latitude,
+          longitude: this.loc.geo.longitude,
+          state: this.loc.state,
+          city: this.loc.city
+        };
+      };
+
+      return FieldLocator;
+
+    })();
+    return {
+      Locator: Locator,
+      FieldLocator: FieldLocator
+    };
+  });
+
+}).call(this);
+
+// stub which loads jqueryui.  useful for mean modules that request weird things we don't have.
+//define ['jqueryui'], ->
+
+define('jquery.ui.widget',['jqueryui'], function() {
+});
+/*
+ * jQuery File Upload Plugin 5.19.2
+ * https://github.com/blueimp/jQuery-File-Upload
+ *
+ * Copyright 2010, Sebastian Tschan
+ * https://blueimp.net
+ *
+ * Licensed under the MIT license:
+ * http://www.opensource.org/licenses/MIT
+ */
+
+/*jslint nomen: true, unparam: true, regexp: true */
+/*global define, window, document, Blob, FormData, location */
+
+(function (factory) {
+
+    if (typeof define === 'function' && define.amd) {
+        // Register as an anonymous AMD module:
+        define('jquery.fileupload',[
+            'jquery',
+            'jquery.ui.widget'
+        ], factory);
+    } else {
+        // Browser globals:
+        factory(window.jQuery);
+    }
+}(function ($) {
+
+
+    // The FileReader API is not actually used, but works as feature detection,
+    // as e.g. Safari supports XHR file uploads via the FormData API,
+    // but not non-multipart XHR file uploads:
+    $.support.xhrFileUpload = !!(window.XMLHttpRequestUpload && window.FileReader);
+    $.support.xhrFormDataFileUpload = !!window.FormData;
+
+    // The fileupload widget listens for change events on file input fields defined
+    // via fileInput setting and paste or drop events of the given dropZone.
+    // In addition to the default jQuery Widget methods, the fileupload widget
+    // exposes the "add" and "send" methods, to add or directly send files using
+    // the fileupload API.
+    // By default, files added via file input selection, paste, drag & drop or
+    // "add" method are uploaded immediately, but it is possible to override
+    // the "add" callback option to queue file uploads.
+    $.widget('blueimp.fileupload', {
+
+        options: {
+            // The drop target element(s), by the default the complete document.
+            // Set to null to disable drag & drop support:
+            dropZone: $(document),
+            // The paste target element(s), by the default the complete document.
+            // Set to null to disable paste support:
+            pasteZone: $(document),
+            // The file input field(s), that are listened to for change events.
+            // If undefined, it is set to the file input fields inside
+            // of the widget element on plugin initialization.
+            // Set to null to disable the change listener.
+            fileInput: undefined,
+            // By default, the file input field is replaced with a clone after
+            // each input field change event. This is required for iframe transport
+            // queues and allows change events to be fired for the same file
+            // selection, but can be disabled by setting the following option to false:
+            replaceFileInput: true,
+            // The parameter name for the file form data (the request argument name).
+            // If undefined or empty, the name property of the file input field is
+            // used, or "files[]" if the file input name property is also empty,
+            // can be a string or an array of strings:
+            paramName: undefined,
+            // By default, each file of a selection is uploaded using an individual
+            // request for XHR type uploads. Set to false to upload file
+            // selections in one request each:
+            singleFileUploads: true,
+            // To limit the number of files uploaded with one XHR request,
+            // set the following option to an integer greater than 0:
+            limitMultiFileUploads: undefined,
+            // Set the following option to true to issue all file upload requests
+            // in a sequential order:
+            sequentialUploads: false,
+            // To limit the number of concurrent uploads,
+            // set the following option to an integer greater than 0:
+            limitConcurrentUploads: undefined,
+            // Set the following option to true to force iframe transport uploads:
+            forceIframeTransport: false,
+            // Set the following option to the location of a redirect url on the
+            // origin server, for cross-domain iframe transport uploads:
+            redirect: undefined,
+            // The parameter name for the redirect url, sent as part of the form
+            // data and set to 'redirect' if this option is empty:
+            redirectParamName: undefined,
+            // Set the following option to the location of a postMessage window,
+            // to enable postMessage transport uploads:
+            postMessage: undefined,
+            // By default, XHR file uploads are sent as multipart/form-data.
+            // The iframe transport is always using multipart/form-data.
+            // Set to false to enable non-multipart XHR uploads:
+            multipart: true,
+            // To upload large files in smaller chunks, set the following option
+            // to a preferred maximum chunk size. If set to 0, null or undefined,
+            // or the browser does not support the required Blob API, files will
+            // be uploaded as a whole.
+            maxChunkSize: undefined,
+            // When a non-multipart upload or a chunked multipart upload has been
+            // aborted, this option can be used to resume the upload by setting
+            // it to the size of the already uploaded bytes. This option is most
+            // useful when modifying the options object inside of the "add" or
+            // "send" callbacks, as the options are cloned for each file upload.
+            uploadedBytes: undefined,
+            // By default, failed (abort or error) file uploads are removed from the
+            // global progress calculation. Set the following option to false to
+            // prevent recalculating the global progress data:
+            recalculateProgress: true,
+            // Interval in milliseconds to calculate and trigger progress events:
+            progressInterval: 100,
+            // Interval in milliseconds to calculate progress bitrate:
+            bitrateInterval: 500,
+
+            // Additional form data to be sent along with the file uploads can be set
+            // using this option, which accepts an array of objects with name and
+            // value properties, a function returning such an array, a FormData
+            // object (for XHR file uploads), or a simple object.
+            // The form of the first fileInput is given as parameter to the function:
+            formData: function (form) {
+                return form.serializeArray();
+            },
+
+            // The add callback is invoked as soon as files are added to the fileupload
+            // widget (via file input selection, drag & drop, paste or add API call).
+            // If the singleFileUploads option is enabled, this callback will be
+            // called once for each file in the selection for XHR file uplaods, else
+            // once for each file selection.
+            // The upload starts when the submit method is invoked on the data parameter.
+            // The data object contains a files property holding the added files
+            // and allows to override plugin options as well as define ajax settings.
+            // Listeners for this callback can also be bound the following way:
+            // .bind('fileuploadadd', func);
+            // data.submit() returns a Promise object and allows to attach additional
+            // handlers using jQuery's Deferred callbacks:
+            // data.submit().done(func).fail(func).always(func);
+            add: function (e, data) {
+                data.submit();
+            },
+
+            // Other callbacks:
+            // Callback for the submit event of each file upload:
+            // submit: function (e, data) {}, // .bind('fileuploadsubmit', func);
+            // Callback for the start of each file upload request:
+            // send: function (e, data) {}, // .bind('fileuploadsend', func);
+            // Callback for successful uploads:
+            // done: function (e, data) {}, // .bind('fileuploaddone', func);
+            // Callback for failed (abort or error) uploads:
+            // fail: function (e, data) {}, // .bind('fileuploadfail', func);
+            // Callback for completed (success, abort or error) requests:
+            // always: function (e, data) {}, // .bind('fileuploadalways', func);
+            // Callback for upload progress events:
+            // progress: function (e, data) {}, // .bind('fileuploadprogress', func);
+            // Callback for global upload progress events:
+            // progressall: function (e, data) {}, // .bind('fileuploadprogressall', func);
+            // Callback for uploads start, equivalent to the global ajaxStart event:
+            // start: function (e) {}, // .bind('fileuploadstart', func);
+            // Callback for uploads stop, equivalent to the global ajaxStop event:
+            // stop: function (e) {}, // .bind('fileuploadstop', func);
+            // Callback for change events of the fileInput(s):
+            // change: function (e, data) {}, // .bind('fileuploadchange', func);
+            // Callback for paste events to the pasteZone(s):
+            // paste: function (e, data) {}, // .bind('fileuploadpaste', func);
+            // Callback for drop events of the dropZone(s):
+            // drop: function (e, data) {}, // .bind('fileuploaddrop', func);
+            // Callback for dragover events of the dropZone(s):
+            // dragover: function (e) {}, // .bind('fileuploaddragover', func);
+
+            // The plugin options are used as settings object for the ajax calls.
+            // The following are jQuery ajax settings required for the file uploads:
+            processData: false,
+            contentType: false,
+            cache: false
+        },
+
+        // A list of options that require a refresh after assigning a new value:
+        _refreshOptionsList: [
+            'fileInput',
+            'dropZone',
+            'pasteZone',
+            'multipart',
+            'forceIframeTransport'
+        ],
+
+        _BitrateTimer: function () {
+            this.timestamp = +(new Date());
+            this.loaded = 0;
+            this.bitrate = 0;
+            this.getBitrate = function (now, loaded, interval) {
+                var timeDiff = now - this.timestamp;
+                if (!this.bitrate || !interval || timeDiff > interval) {
+                    this.bitrate = (loaded - this.loaded) * (1000 / timeDiff) * 8;
+                    this.loaded = loaded;
+                    this.timestamp = now;
+                }
+                return this.bitrate;
+            };
+        },
+
+        _isXHRUpload: function (options) {
+            return !options.forceIframeTransport &&
+                ((!options.multipart && $.support.xhrFileUpload) ||
+                $.support.xhrFormDataFileUpload);
+        },
+
+        _getFormData: function (options) {
+            var formData;
+            if (typeof options.formData === 'function') {
+                return options.formData(options.form);
+            }
+			if ($.isArray(options.formData)) {
+                return options.formData;
+            }
+			if (options.formData) {
+                formData = [];
+                $.each(options.formData, function (name, value) {
+                    formData.push({name: name, value: value});
+                });
+                return formData;
+            }
+            return [];
+        },
+
+        _getTotal: function (files) {
+            var total = 0;
+            $.each(files, function (index, file) {
+                total += file.size || 1;
+            });
+            return total;
+        },
+
+        _onProgress: function (e, data) {
+            if (e.lengthComputable) {
+                var now = +(new Date()),
+                    total,
+                    loaded;
+                if (data._time && data.progressInterval &&
+                        (now - data._time < data.progressInterval) &&
+                        e.loaded !== e.total) {
+                    return;
+                }
+                data._time = now;
+                total = data.total || this._getTotal(data.files);
+                loaded = parseInt(
+                    e.loaded / e.total * (data.chunkSize || total),
+                    10
+                ) + (data.uploadedBytes || 0);
+                this._loaded += loaded - (data.loaded || data.uploadedBytes || 0);
+                data.lengthComputable = true;
+                data.loaded = loaded;
+                data.total = total;
+                data.bitrate = data._bitrateTimer.getBitrate(
+                    now,
+                    loaded,
+                    data.bitrateInterval
+                );
+                // Trigger a custom progress event with a total data property set
+                // to the file size(s) of the current upload and a loaded data
+                // property calculated accordingly:
+                this._trigger('progress', e, data);
+                // Trigger a global progress event for all current file uploads,
+                // including ajax calls queued for sequential file uploads:
+                this._trigger('progressall', e, {
+                    lengthComputable: true,
+                    loaded: this._loaded,
+                    total: this._total,
+                    bitrate: this._bitrateTimer.getBitrate(
+                        now,
+                        this._loaded,
+                        data.bitrateInterval
+                    )
+                });
+            }
+        },
+
+        _initProgressListener: function (options) {
+            var that = this,
+                xhr = options.xhr ? options.xhr() : $.ajaxSettings.xhr();
+            // Accesss to the native XHR object is required to add event listeners
+            // for the upload progress event:
+            if (xhr.upload) {
+                $(xhr.upload).bind('progress', function (e) {
+                    var oe = e.originalEvent;
+                    // Make sure the progress event properties get copied over:
+                    e.lengthComputable = oe.lengthComputable;
+                    e.loaded = oe.loaded;
+                    e.total = oe.total;
+                    that._onProgress(e, options);
+                });
+                options.xhr = function () {
+                    return xhr;
+                };
+            }
+        },
+
+        _initXHRData: function (options) {
+            var formData,
+                file = options.files[0],
+                // Ignore non-multipart setting if not supported:
+                multipart = options.multipart || !$.support.xhrFileUpload,
+                paramName = options.paramName[0];
+            options.headers = options.headers || {};
+            if (options.contentRange) {
+                options.headers['Content-Range'] = options.contentRange;
+            }
+            if (!multipart) {
+                options.headers['Content-Disposition'] = 'attachment; filename="' +
+                    encodeURI(file.name) + '"';
+                options.contentType = file.type;
+                options.data = options.blob || file;
+            } else if ($.support.xhrFormDataFileUpload) {
+                if (options.postMessage) {
+                    // window.postMessage does not allow sending FormData
+                    // objects, so we just add the File/Blob objects to
+                    // the formData array and let the postMessage window
+                    // create the FormData object out of this array:
+                    formData = this._getFormData(options);
+                    if (options.blob) {
+                        formData.push({
+                            name: paramName,
+                            value: options.blob
+                        });
+                    } else {
+                        $.each(options.files, function (index, file) {
+                            formData.push({
+                                name: options.paramName[index] || paramName,
+                                value: file
+                            });
+                        });
+                    }
+                } else {
+                    if (options.formData instanceof FormData) {
+                        formData = options.formData;
+                    } else {
+                        formData = new FormData();
+                        $.each(this._getFormData(options), function (index, field) {
+                            formData.append(field.name, field.value);
+                        });
+                    }
+                    if (options.blob) {
+                        options.headers['Content-Disposition'] = 'attachment; filename="' +
+                            encodeURI(file.name) + '"';
+                        options.headers['Content-Description'] = encodeURI(file.type);
+                        formData.append(paramName, options.blob, file.name);
+                    } else {
+                        $.each(options.files, function (index, file) {
+                            // File objects are also Blob instances.
+                            // This check allows the tests to run with
+                            // dummy objects:
+                            if (file instanceof Blob) {
+                                formData.append(
+                                    options.paramName[index] || paramName,
+                                    file,
+                                    file.name
+                                );
+                            }
+                        });
+                    }
+                }
+                options.data = formData;
+            }
+            // Blob reference is not needed anymore, free memory:
+            options.blob = null;
+        },
+
+        _initIframeSettings: function (options) {
+            // Setting the dataType to iframe enables the iframe transport:
+            options.dataType = 'iframe ' + (options.dataType || '');
+            // The iframe transport accepts a serialized array as form data:
+            options.formData = this._getFormData(options);
+            // Add redirect url to form data on cross-domain uploads:
+            if (options.redirect && $('<a></a>').prop('href', options.url)
+                    .prop('host') !== location.host) {
+                options.formData.push({
+                    name: options.redirectParamName || 'redirect',
+                    value: options.redirect
+                });
+            }
+        },
+
+        _initDataSettings: function (options) {
+            if (this._isXHRUpload(options)) {
+                if (!this._chunkedUpload(options, true)) {
+                    if (!options.data) {
+                        this._initXHRData(options);
+                    }
+                    this._initProgressListener(options);
+                }
+                if (options.postMessage) {
+                    // Setting the dataType to postmessage enables the
+                    // postMessage transport:
+                    options.dataType = 'postmessage ' + (options.dataType || '');
+                }
+            } else {
+                this._initIframeSettings(options, 'iframe');
+            }
+        },
+
+        _getParamName: function (options) {
+            var fileInput = $(options.fileInput),
+                paramName = options.paramName;
+            if (!paramName) {
+                paramName = [];
+                fileInput.each(function () {
+                    var input = $(this),
+                        name = input.prop('name') || 'files[]',
+                        i = (input.prop('files') || [1]).length;
+                    while (i) {
+                        paramName.push(name);
+                        i -= 1;
+                    }
+                });
+                if (!paramName.length) {
+                    paramName = [fileInput.prop('name') || 'files[]'];
+                }
+            } else if (!$.isArray(paramName)) {
+                paramName = [paramName];
+            }
+            return paramName;
+        },
+
+        _initFormSettings: function (options) {
+            // Retrieve missing options from the input field and the
+            // associated form, if available:
+            if (!options.form || !options.form.length) {
+                options.form = $(options.fileInput.prop('form'));
+                // If the given file input doesn't have an associated form,
+                // use the default widget file input's form:
+                if (!options.form.length) {
+                    options.form = $(this.options.fileInput.prop('form'));
+                }
+            }
+            options.paramName = this._getParamName(options);
+            if (!options.url) {
+                options.url = options.form.prop('action') || location.href;
+            }
+            // The HTTP request method must be "POST" or "PUT":
+            options.type = (options.type || options.form.prop('method') || '')
+                .toUpperCase();
+            if (options.type !== 'POST' && options.type !== 'PUT') {
+                options.type = 'POST';
+            }
+            if (!options.formAcceptCharset) {
+                options.formAcceptCharset = options.form.attr('accept-charset');
+            }
+        },
+
+        _getAJAXSettings: function (data) {
+            var options = $.extend({}, this.options, data);
+            this._initFormSettings(options);
+            this._initDataSettings(options);
+            return options;
+        },
+
+        // Maps jqXHR callbacks to the equivalent
+        // methods of the given Promise object:
+        _enhancePromise: function (promise) {
+            promise.success = promise.done;
+            promise.error = promise.fail;
+            promise.complete = promise.always;
+            return promise;
+        },
+
+        // Creates and returns a Promise object enhanced with
+        // the jqXHR methods abort, success, error and complete:
+        _getXHRPromise: function (resolveOrReject, context, args) {
+            var dfd = $.Deferred(),
+                promise = dfd.promise();
+            context = context || this.options.context || promise;
+            if (resolveOrReject === true) {
+                dfd.resolveWith(context, args);
+            } else if (resolveOrReject === false) {
+                dfd.rejectWith(context, args);
+            }
+            promise.abort = dfd.promise;
+            return this._enhancePromise(promise);
+        },
+
+        // Parses the Range header from the server response
+        // and returns the uploaded bytes:
+        _getUploadedBytes: function (jqXHR) {
+            var range = jqXHR.getResponseHeader('Range'),
+                parts = range && range.split('-'),
+                upperBytesPos = parts && parts.length > 1 &&
+                    parseInt(parts[1], 10);
+            return upperBytesPos && upperBytesPos + 1;
+        },
+
+        // Uploads a file in multiple, sequential requests
+        // by splitting the file up in multiple blob chunks.
+        // If the second parameter is true, only tests if the file
+        // should be uploaded in chunks, but does not invoke any
+        // upload requests:
+        _chunkedUpload: function (options, testOnly) {
+            var that = this,
+                file = options.files[0],
+                fs = file.size,
+                ub = options.uploadedBytes = options.uploadedBytes || 0,
+                mcs = options.maxChunkSize || fs,
+                slice = file.slice || file.webkitSlice || file.mozSlice,
+                dfd = $.Deferred(),
+                promise = dfd.promise(),
+                jqXHR,
+                upload;
+            if (!(this._isXHRUpload(options) && slice && (ub || mcs < fs)) ||
+                    options.data) {
+                return false;
+            }
+            if (testOnly) {
+                return true;
+            }
+            if (ub >= fs) {
+                file.error = 'Uploaded bytes exceed file size';
+                return this._getXHRPromise(
+                    false,
+                    options.context,
+                    [null, 'error', file.error]
+                );
+            }
+            // The chunk upload method:
+            upload = function (i) {
+                // Clone the options object for each chunk upload:
+                var o = $.extend({}, options);
+                o.blob = slice.call(
+                    file,
+                    ub,
+                    ub + mcs
+                );
+                // Store the current chunk size, as the blob itself
+                // will be dereferenced after data processing:
+                o.chunkSize = o.blob.size;
+                // Expose the chunk bytes position range:
+                o.contentRange = 'bytes ' + ub + '-' +
+                    (ub + o.chunkSize - 1) + '/' + fs;
+                // Process the upload data (the blob and potential form data):
+                that._initXHRData(o);
+                // Add progress listeners for this chunk upload:
+                that._initProgressListener(o);
+                jqXHR = ($.ajax(o) || that._getXHRPromise(false, o.context))
+                    .done(function (result, textStatus, jqXHR) {
+                        ub = that._getUploadedBytes(jqXHR) ||
+                            (ub + o.chunkSize);
+                        // Create a progress event if upload is done and
+                        // no progress event has been invoked for this chunk:
+                        if (!o.loaded) {
+                            that._onProgress($.Event('progress', {
+                                lengthComputable: true,
+                                loaded: ub - o.uploadedBytes,
+                                total: ub - o.uploadedBytes
+                            }), o);
+                        }
+                        options.uploadedBytes = o.uploadedBytes = ub;
+                        if (ub < fs) {
+                            // File upload not yet complete,
+                            // continue with the next chunk:
+                            upload();
+                        } else {
+                            dfd.resolveWith(
+                                o.context,
+                                [result, textStatus, jqXHR]
+                            );
+                        }
+                    })
+                    .fail(function (jqXHR, textStatus, errorThrown) {
+                        dfd.rejectWith(
+                            o.context,
+                            [jqXHR, textStatus, errorThrown]
+                        );
+                    });
+            };
+            this._enhancePromise(promise);
+            promise.abort = function () {
+                return jqXHR.abort();
+            };
+            upload();
+            return promise;
+        },
+
+        _beforeSend: function (e, data) {
+            if (this._active === 0) {
+                // the start callback is triggered when an upload starts
+                // and no other uploads are currently running,
+                // equivalent to the global ajaxStart event:
+                this._trigger('start');
+                // Set timer for global bitrate progress calculation:
+                this._bitrateTimer = new this._BitrateTimer();
+            }
+            this._active += 1;
+            // Initialize the global progress values:
+            this._loaded += data.uploadedBytes || 0;
+            this._total += this._getTotal(data.files);
+        },
+
+        _onDone: function (result, textStatus, jqXHR, options) {
+            if (!this._isXHRUpload(options)) {
+                // Create a progress event for each iframe load:
+                this._onProgress($.Event('progress', {
+                    lengthComputable: true,
+                    loaded: 1,
+                    total: 1
+                }), options);
+            }
+            options.result = result;
+            options.textStatus = textStatus;
+            options.jqXHR = jqXHR;
+            this._trigger('done', null, options);
+        },
+
+        _onFail: function (jqXHR, textStatus, errorThrown, options) {
+            options.jqXHR = jqXHR;
+            options.textStatus = textStatus;
+            options.errorThrown = errorThrown;
+            this._trigger('fail', null, options);
+            if (options.recalculateProgress) {
+                // Remove the failed (error or abort) file upload from
+                // the global progress calculation:
+                this._loaded -= options.loaded || options.uploadedBytes || 0;
+                this._total -= options.total || this._getTotal(options.files);
+            }
+        },
+
+        _onAlways: function (jqXHRorResult, textStatus, jqXHRorError, options) {
+            this._active -= 1;
+            options.textStatus = textStatus;
+            if (jqXHRorError && jqXHRorError.always) {
+                options.jqXHR = jqXHRorError;
+                options.result = jqXHRorResult;
+            } else {
+                options.jqXHR = jqXHRorResult;
+                options.errorThrown = jqXHRorError;
+            }
+            this._trigger('always', null, options);
+            if (this._active === 0) {
+                // The stop callback is triggered when all uploads have
+                // been completed, equivalent to the global ajaxStop event:
+                this._trigger('stop');
+                // Reset the global progress values:
+                this._loaded = this._total = 0;
+                this._bitrateTimer = null;
+            }
+        },
+
+        _onSend: function (e, data) {
+            var that = this,
+                jqXHR,
+                slot,
+                pipe,
+                options = that._getAJAXSettings(data),
+                send = function (resolve, args) {
+                    that._sending += 1;
+                    // Set timer for bitrate progress calculation:
+                    options._bitrateTimer = new that._BitrateTimer();
+                    jqXHR = jqXHR || (
+                        (resolve !== false &&
+                        that._trigger('send', e, options) !== false &&
+                        (that._chunkedUpload(options) || $.ajax(options))) ||
+                        that._getXHRPromise(false, options.context, args)
+                    ).done(function (result, textStatus, jqXHR) {
+                        that._onDone(result, textStatus, jqXHR, options);
+                    }).fail(function (jqXHR, textStatus, errorThrown) {
+                        that._onFail(jqXHR, textStatus, errorThrown, options);
+                    }).always(function (jqXHRorResult, textStatus, jqXHRorError) {
+                        that._sending -= 1;
+                        that._onAlways(
+                            jqXHRorResult,
+                            textStatus,
+                            jqXHRorError,
+                            options
+                        );
+                        if (options.limitConcurrentUploads &&
+                                options.limitConcurrentUploads > that._sending) {
+                            // Start the next queued upload,
+                            // that has not been aborted:
+                            var nextSlot = that._slots.shift(),
+                                isPending;
+                            while (nextSlot) {
+                                // jQuery 1.6 doesn't provide .state(),
+                                // while jQuery 1.8+ removed .isRejected():
+                                isPending = nextSlot.state ?
+                                        nextSlot.state() === 'pending' :
+                                        !nextSlot.isRejected();
+                                if (isPending) {
+                                    nextSlot.resolve();
+                                    break;
+                                }
+                                nextSlot = that._slots.shift();
+                            }
+                        }
+                    });
+                    return jqXHR;
+                };
+            this._beforeSend(e, options);
+            if (this.options.sequentialUploads ||
+                    (this.options.limitConcurrentUploads &&
+                    this.options.limitConcurrentUploads <= this._sending)) {
+                if (this.options.limitConcurrentUploads > 1) {
+                    slot = $.Deferred();
+                    this._slots.push(slot);
+                    pipe = slot.pipe(send);
+                } else {
+                    pipe = (this._sequence = this._sequence.pipe(send, send));
+                }
+                // Return the piped Promise object, enhanced with an abort method,
+                // which is delegated to the jqXHR object of the current upload,
+                // and jqXHR callbacks mapped to the equivalent Promise methods:
+                pipe.abort = function () {
+                    var args = [undefined, 'abort', 'abort'];
+                    if (!jqXHR) {
+                        if (slot) {
+                            slot.rejectWith(pipe, args);
+                        }
+                        return send(false, args);
+                    }
+                    return jqXHR.abort();
+                };
+                return this._enhancePromise(pipe);
+            }
+            return send();
+        },
+
+        _onAdd: function (e, data) {
+            var that = this,
+                result = true,
+                options = $.extend({}, this.options, data),
+                limit = options.limitMultiFileUploads,
+                paramName = this._getParamName(options),
+                paramNameSet,
+                paramNameSlice,
+                fileSet,
+                i;
+            if (!(options.singleFileUploads || limit) ||
+                    !this._isXHRUpload(options)) {
+                fileSet = [data.files];
+                paramNameSet = [paramName];
+            } else if (!options.singleFileUploads && limit) {
+                fileSet = [];
+                paramNameSet = [];
+                for (i = 0; i < data.files.length; i += limit) {
+                    fileSet.push(data.files.slice(i, i + limit));
+                    paramNameSlice = paramName.slice(i, i + limit);
+                    if (!paramNameSlice.length) {
+                        paramNameSlice = paramName;
+                    }
+                    paramNameSet.push(paramNameSlice);
+                }
+            } else {
+                paramNameSet = paramName;
+            }
+            data.originalFiles = data.files;
+            $.each(fileSet || data.files, function (index, element) {
+                var newData = $.extend({}, data);
+                newData.files = fileSet ? element : [element];
+                newData.paramName = paramNameSet[index];
+                newData.submit = function () {
+                    newData.jqXHR = this.jqXHR =
+                        (that._trigger('submit', e, this) !== false) &&
+                        that._onSend(e, this);
+                    return this.jqXHR;
+                };
+                return (result = that._trigger('add', e, newData));
+            });
+            return result;
+        },
+
+        _replaceFileInput: function (input) {
+            var inputClone = input.clone(true);
+            $('<form></form>').append(inputClone)[0].reset();
+            // Detaching allows to insert the fileInput on another form
+            // without loosing the file input value:
+            input.after(inputClone).detach();
+            // Avoid memory leaks with the detached file input:
+            $.cleanData(input.unbind('remove'));
+            // Replace the original file input element in the fileInput
+            // elements set with the clone, which has been copied including
+            // event handlers:
+            this.options.fileInput = this.options.fileInput.map(function (i, el) {
+                if (el === input[0]) {
+                    return inputClone[0];
+                }
+                return el;
+            });
+            // If the widget has been initialized on the file input itself,
+            // override this.element with the file input clone:
+            if (input[0] === this.element[0]) {
+                this.element = inputClone;
+            }
+        },
+
+        _handleFileTreeEntry: function (entry, path) {
+            var that = this,
+                dfd = $.Deferred(),
+                errorHandler = function (e) {
+                    if (e && !e.entry) {
+                        e.entry = entry;
+                    }
+                    // Since $.when returns immediately if one
+                    // Deferred is rejected, we use resolve instead.
+                    // This allows valid files and invalid items
+                    // to be returned together in one set:
+                    dfd.resolve([e]);
+                },
+                dirReader;
+            path = path || '';
+            if (entry.isFile) {
+                if (entry._file) {
+                    // Workaround for Chrome bug #149735
+                    entry._file.relativePath = path;
+                    dfd.resolve(entry._file);
+                } else {
+                    entry.file(function (file) {
+                        file.relativePath = path;
+                        dfd.resolve(file);
+                    }, errorHandler);
+                }
+            } else if (entry.isDirectory) {
+                dirReader = entry.createReader();
+                dirReader.readEntries(function (entries) {
+                    that._handleFileTreeEntries(
+                        entries,
+                        path + entry.name + '/'
+                    ).done(function (files) {
+                        dfd.resolve(files);
+                    }).fail(errorHandler);
+                }, errorHandler);
+            } else {
+                // Return an empy list for file system items
+                // other than files or directories:
+                dfd.resolve([]);
+            }
+            return dfd.promise();
+        },
+
+        _handleFileTreeEntries: function (entries, path) {
+            var that = this;
+            return $.when.apply(
+                $,
+                $.map(entries, function (entry) {
+                    return that._handleFileTreeEntry(entry, path);
+                })
+            ).pipe(function () {
+                return Array.prototype.concat.apply(
+                    [],
+                    arguments
+                );
+            });
+        },
+
+        _getDroppedFiles: function (dataTransfer) {
+            dataTransfer = dataTransfer || {};
+            var items = dataTransfer.items;
+            if (items && items.length && (items[0].webkitGetAsEntry ||
+                    items[0].getAsEntry)) {
+                return this._handleFileTreeEntries(
+                    $.map(items, function (item) {
+                        var entry;
+                        if (item.webkitGetAsEntry) {
+                            entry = item.webkitGetAsEntry();
+                            if (entry) {
+                                // Workaround for Chrome bug #149735:
+                                entry._file = item.getAsFile();
+                            }
+                            return entry;
+                        }
+                        return item.getAsEntry();
+                    })
+                );
+            }
+            return $.Deferred().resolve(
+                $.makeArray(dataTransfer.files)
+            ).promise();
+        },
+
+        _getSingleFileInputFiles: function (fileInput) {
+            fileInput = $(fileInput);
+            var entries = fileInput.prop('webkitEntries') ||
+                    fileInput.prop('entries'),
+                files,
+                value;
+            if (entries && entries.length) {
+                return this._handleFileTreeEntries(entries);
+            }
+            files = $.makeArray(fileInput.prop('files'));
+            if (!files.length) {
+                value = fileInput.prop('value');
+                if (!value) {
+                    return $.Deferred().resolve([]).promise();
+                }
+                // If the files property is not available, the browser does not
+                // support the File API and we add a pseudo File object with
+                // the input value as name with path information removed:
+                files = [{name: value.replace(/^.*\\/, '')}];
+            } else if (files[0].name === undefined && files[0].fileName) {
+                // File normalization for Safari 4 and Firefox 3:
+                $.each(files, function (index, file) {
+                    file.name = file.fileName;
+                    file.size = file.fileSize;
+                });
+            }
+            return $.Deferred().resolve(files).promise();
+        },
+
+        _getFileInputFiles: function (fileInput) {
+            if (!(fileInput instanceof $) || fileInput.length === 1) {
+                return this._getSingleFileInputFiles(fileInput);
+            }
+            return $.when.apply(
+                $,
+                $.map(fileInput, this._getSingleFileInputFiles)
+            ).pipe(function () {
+                return Array.prototype.concat.apply(
+                    [],
+                    arguments
+                );
+            });
+        },
+
+        _onChange: function (e) {
+            var that = this,
+                data = {
+                    fileInput: $(e.target),
+                    form: $(e.target.form)
+                };
+            this._getFileInputFiles(data.fileInput).always(function (files) {
+                data.files = files;
+                if (that.options.replaceFileInput) {
+                    that._replaceFileInput(data.fileInput);
+                }
+                if (that._trigger('change', e, data) !== false) {
+                    that._onAdd(e, data);
+                }
+            });
+        },
+
+        _onPaste: function (e) {
+            var cbd = e.originalEvent.clipboardData,
+                items = (cbd && cbd.items) || [],
+                data = {files: []};
+            $.each(items, function (index, item) {
+                var file = item.getAsFile && item.getAsFile();
+                if (file) {
+                    data.files.push(file);
+                }
+            });
+            if (this._trigger('paste', e, data) === false ||
+                    this._onAdd(e, data) === false) {
+                return false;
+            }
+        },
+
+        _onDrop: function (e) {
+            e.preventDefault();
+            var that = this,
+                dataTransfer = e.dataTransfer = e.originalEvent.dataTransfer,
+                data = {};
+            this._getDroppedFiles(dataTransfer).always(function (files) {
+                data.files = files;
+                if (that._trigger('drop', e, data) !== false) {
+                    that._onAdd(e, data);
+                }
+            });
+        },
+
+        _onDragOver: function (e) {
+            var dataTransfer = e.dataTransfer = e.originalEvent.dataTransfer;
+            if (this._trigger('dragover', e) === false) {
+                return false;
+            }
+            if (dataTransfer) {
+                dataTransfer.dropEffect = 'copy';
+            }
+            e.preventDefault();
+        },
+
+        _initEventHandlers: function () {
+            if (this._isXHRUpload(this.options)) {
+                this._on(this.options.dropZone, {
+                    dragover: this._onDragOver,
+                    drop: this._onDrop
+                });
+                this._on(this.options.pasteZone, {
+                    paste: this._onPaste
+                });
+            }
+            this._on(this.options.fileInput, {
+                change: this._onChange
+            });
+        },
+
+        _destroyEventHandlers: function () {
+            this._off(this.options.dropZone, 'dragover drop');
+            this._off(this.options.pasteZone, 'paste');
+            this._off(this.options.fileInput, 'change');
+        },
+
+        _setOption: function (key, value) {
+            var refresh = $.inArray(key, this._refreshOptionsList) !== -1;
+            if (refresh) {
+                this._destroyEventHandlers();
+            }
+            this._super(key, value);
+            if (refresh) {
+                this._initSpecialOptions();
+                this._initEventHandlers();
+            }
+        },
+
+        _initSpecialOptions: function () {
+            var options = this.options;
+            if (options.fileInput === undefined) {
+                options.fileInput = this.element.is('input[type="file"]') ?
+                        this.element : this.element.find('input[type="file"]');
+            } else if (!(options.fileInput instanceof $)) {
+                options.fileInput = $(options.fileInput);
+            }
+            if (!(options.dropZone instanceof $)) {
+                options.dropZone = $(options.dropZone);
+            }
+            if (!(options.pasteZone instanceof $)) {
+                options.pasteZone = $(options.pasteZone);
+            }
+        },
+
+        _create: function () {
+            var options = this.options;
+            // Initialize options set via HTML5 data-attributes:
+            $.extend(options, $(this.element[0].cloneNode(false)).data());
+            this._initSpecialOptions();
+            this._slots = [];
+            this._sequence = this._getXHRPromise(true);
+            this._sending = this._active = this._loaded = this._total = 0;
+            this._initEventHandlers();
+        },
+
+        _destroy: function () {
+            this._destroyEventHandlers();
+        },
+
+        // This method is exposed to the widget API and allows adding files
+        // using the fileupload API. The data parameter accepts an object which
+        // must have a files property and can contain additional options:
+        // .fileupload('add', {files: filesList});
+        add: function (data) {
+            var that = this;
+            if (!data || this.options.disabled) {
+                return;
+            }
+            if (data.fileInput && !data.files) {
+                this._getFileInputFiles(data.fileInput).always(function (files) {
+                    data.files = files;
+                    that._onAdd(null, data);
+                });
+            } else {
+                data.files = $.makeArray(data.files);
+                this._onAdd(null, data);
+            }
+        },
+
+        // This method is exposed to the widget API and allows sending files
+        // using the fileupload API. The data parameter accepts an object which
+        // must have a files or fileInput property and can contain additional options:
+        // .fileupload('send', {files: filesList});
+        // The method returns a Promise object for the file upload call.
+        send: function (data) {
+            if (data && !this.options.disabled) {
+                if (data.fileInput && !data.files) {
+                    var that = this,
+                        dfd = $.Deferred(),
+                        promise = dfd.promise(),
+                        jqXHR,
+                        aborted;
+                    promise.abort = function () {
+                        aborted = true;
+                        if (jqXHR) {
+                            return jqXHR.abort();
+                        }
+                        dfd.reject(null, 'abort', 'abort');
+                        return promise;
+                    };
+                    this._getFileInputFiles(data.fileInput).always(
+                        function (files) {
+                            if (aborted) {
+                                return;
+                            }
+                            data.files = files;
+                            jqXHR = that._onSend(null, data).then(
+                                function (result, textStatus, jqXHR) {
+                                    dfd.resolve(result, textStatus, jqXHR);
+                                },
+                                function (jqXHR, textStatus, errorThrown) {
+                                    dfd.reject(jqXHR, textStatus, errorThrown);
+                                }
+                            );
+                        }
+                    );
+                    return this._enhancePromise(promise);
+                }
+                data.files = $.makeArray(data.files);
+                if (data.files.length) {
+                    return this._onSend(null, data);
+                }
+            }
+            return this._getXHRPromise(false, data && data.context);
+        }
+
+    });
+
+}));
+
+/* =========================================================
+ * bootstrap-modal.js v2.2.1
+ * http://twitter.github.com/bootstrap/javascript.html#modals
+ * =========================================================
+ * Copyright 2012 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ========================================================= */
+
+
+!function ($) {
+
+   // jshint ;_;
+
+
+ /* MODAL CLASS DEFINITION
+  * ====================== */
+
+  var Modal = function (element, options) {
+    this.options = options
+    this.$element = $(element)
+      .delegate('[data-dismiss="modal"]', 'click.dismiss.modal', $.proxy(this.hide, this))
+    this.options.remote && this.$element.find('.modal-body').load(this.options.remote)
+  }
+
+  Modal.prototype = {
+
+      constructor: Modal
+
+    , toggle: function () {
+        return this[!this.isShown ? 'show' : 'hide']()
+      }
+
+    , show: function () {
+        var that = this
+          , e = $.Event('show')
+
+        this.$element.trigger(e)
+
+        if (this.isShown || e.isDefaultPrevented()) return
+
+        this.isShown = true
+
+        this.escape()
+
+        this.backdrop(function () {
+          var transition = $.support.transition && that.$element.hasClass('fade')
+
+          if (!that.$element.parent().length) {
+            that.$element.appendTo(document.body) //don't move modals dom position
+          }
+
+          that.$element
+            .show()
+
+          if (transition) {
+            that.$element[0].offsetWidth // force reflow
+          }
+
+          that.$element
+            .addClass('in')
+            .attr('aria-hidden', false)
+
+          that.enforceFocus()
+
+          transition ?
+            that.$element.one($.support.transition.end, function () { that.$element.focus().trigger('shown') }) :
+            that.$element.focus().trigger('shown')
+
+        })
+      }
+
+    , hide: function (e) {
+        e && e.preventDefault()
+
+        var that = this
+
+        e = $.Event('hide')
+
+        this.$element.trigger(e)
+
+        if (!this.isShown || e.isDefaultPrevented()) return
+
+        this.isShown = false
+
+        this.escape()
+
+        $(document).off('focusin.modal')
+
+        this.$element
+          .removeClass('in')
+          .attr('aria-hidden', true)
+
+        $.support.transition && this.$element.hasClass('fade') ?
+          this.hideWithTransition() :
+          this.hideModal()
+      }
+
+    , enforceFocus: function () {
+        var that = this
+        $(document).on('focusin.modal', function (e) {
+          if (that.$element[0] !== e.target && !that.$element.has(e.target).length) {
+            that.$element.focus()
+          }
+        })
+      }
+
+    , escape: function () {
+        var that = this
+        if (this.isShown && this.options.keyboard) {
+          this.$element.on('keyup.dismiss.modal', function ( e ) {
+            e.which == 27 && that.hide()
+          })
+        } else if (!this.isShown) {
+          this.$element.off('keyup.dismiss.modal')
+        }
+      }
+
+    , hideWithTransition: function () {
+        var that = this
+          , timeout = setTimeout(function () {
+              that.$element.off($.support.transition.end)
+              that.hideModal()
+            }, 500)
+
+        this.$element.one($.support.transition.end, function () {
+          clearTimeout(timeout)
+          that.hideModal()
+        })
+      }
+
+    , hideModal: function (that) {
+        this.$element
+          .hide()
+          .trigger('hidden')
+
+        this.backdrop()
+      }
+
+    , removeBackdrop: function () {
+        this.$backdrop.remove()
+        this.$backdrop = null
+      }
+
+    , backdrop: function (callback) {
+        var that = this
+          , animate = this.$element.hasClass('fade') ? 'fade' : ''
+
+        if (this.isShown && this.options.backdrop) {
+          var doAnimate = $.support.transition && animate
+
+          this.$backdrop = $('<div class="modal-backdrop ' + animate + '" />')
+            .appendTo(document.body)
+
+          this.$backdrop.click(
+            this.options.backdrop == 'static' ?
+              $.proxy(this.$element[0].focus, this.$element[0])
+            : $.proxy(this.hide, this)
+          )
+
+          if (doAnimate) this.$backdrop[0].offsetWidth // force reflow
+
+          this.$backdrop.addClass('in')
+
+          doAnimate ?
+            this.$backdrop.one($.support.transition.end, callback) :
+            callback()
+
+        } else if (!this.isShown && this.$backdrop) {
+          this.$backdrop.removeClass('in')
+
+          $.support.transition && this.$element.hasClass('fade')?
+            this.$backdrop.one($.support.transition.end, $.proxy(this.removeBackdrop, this)) :
+            this.removeBackdrop()
+
+        } else if (callback) {
+          callback()
+        }
+      }
+  }
+
+
+ /* MODAL PLUGIN DEFINITION
+  * ======================= */
+
+  $.fn.modal = function (option) {
+    return this.each(function () {
+      var $this = $(this)
+        , data = $this.data('modal')
+        , options = $.extend({}, $.fn.modal.defaults, $this.data(), typeof option == 'object' && option)
+      if (!data) $this.data('modal', (data = new Modal(this, options)))
+      if (typeof option == 'string') data[option]()
+      else if (options.show) data.show()
+    })
+  }
+
+  $.fn.modal.defaults = {
+      backdrop: true
+    , keyboard: true
+    , show: true
+  }
+
+  $.fn.modal.Constructor = Modal
+
+
+ /* MODAL DATA-API
+  * ============== */
+
+  $(document).on('click.modal.data-api', '[data-toggle="modal"]', function (e) {
+    var $this = $(this)
+      , href = $this.attr('href')
+      , $target = $($this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, ''))) //strip for ie7
+      , option = $target.data('modal') ? 'toggle' : $.extend({ remote:!/#/.test(href) && href }, $target.data(), $this.data())
+
+    e.preventDefault()
+
+    $target
+      .modal(option)
+      .one('hide', function () {
+        $this.focus()
+      })
+  })
+
+}(window.jQuery);
+
+define("bootstrap/bootstrap-modal", function(){});
+
+(function(){define('tmpl/util/uploadProgress',["require","handlebars"],function(n){n("handlebars");var e=Handlebars.template,t=Handlebars.templates=Handlebars.templates||{};t.util_uploadProgress=e(function(n,e,t){return t=t||n.helpers,'<div class="fileupload-progress">\n	<div class="progress progress-success progress-striped" role="progressbar" aria-valuemin="0" aria-valuemax="100">\n		<div class="bar" style="width:0%;"></div>\n	</div>\n	<div class="progress-extended"></div>\n</div>\n'})})})();
+(function(){define('tmpl/util/uploadError',["require","handlebars"],function(n){n("handlebars");var e=Handlebars.template,t=Handlebars.templates=Handlebars.templates||{};t.util_uploadError=e(function(n,e,t,a,r){function s(n){var e,a,r="";return r+="\n			",a=t.error,a?e=a.call(n,{hash:{}}):(e=n.error,e=typeof e===c?e():e),r+=h(e)+"\n		"}t=t||n.helpers;var l,o,i="",c="function",h=this.escapeExpression,p=this,d=t.blockHelperMissing;return i+='<div class="fileupload-error">\n	<span class="label label-warning">\n		',o=t.files,o?l=o.call(e,{hash:{},inverse:p.noop,fn:p.program(1,s,r)}):(l=e.files,l=typeof l===c?l():l),t.files||(l=d.call(e,l,{hash:{},inverse:p.noop,fn:p.program(1,s,r)})),(l||0===l)&&(i+=l),i+="\n	</span>\n</div>\n"})})})();
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+  define('app/util/fileupload',['require','app/util/ajax','app/util/widgets','jquery.fileupload','bootstrap/bootstrap-modal','handlebars','tmpl/util/uploadProgress','tmpl/util/uploadError'],function(require) {
+    var FileUploader, ajax, widgets;
+    ajax = require('app/util/ajax');
+    widgets = require('app/util/widgets');
+    require('jquery.fileupload');
+    require('bootstrap/bootstrap-modal');
+    require('handlebars');
+    require('tmpl/util/uploadProgress');
+    require('tmpl/util/uploadError');
+    return window.FileUploader = FileUploader = (function() {
+
+      function FileUploader(box, options) {
+        this.box = box;
+        this.options = options;
+        this._hasError = __bind(this._hasError, this);
+
+        this._validate = __bind(this._validate, this);
+
+        this._notIE = __bind(this._notIE, this);
+
+        this._IE = __bind(this._IE, this);
+
+        this._setupDelete = __bind(this._setupDelete, this);
+
+        this._render = __bind(this._render, this);
+
+        this.button = $('.uploadIEButton', box);
+        this.deleteButton = $('.deleteButton', box);
+        this.image = box.find('#image');
+        this.resultsBox = this.box.find('.uploadResultsBox');
+        this._render();
+        if (this.button.length) {
+          this._IE();
+        } else {
+          this._notIE();
+        }
+        this._setupDelete();
+      }
+
+      FileUploader.prototype._render = function() {
+        var a, i, res;
+        if (this.options.image) {
+          res = i = $('<img />').attr('src', this.options.image).attr('class', 'img-polaroid');
+          if (this.options.download) {
+            a = $('<a></a>').attr({
+              'href': this.options.download,
+              'target': '_blank'
+            });
+            res = a.append(i);
+          }
+          return this.image.empty().append(res).show();
+        } else {
+          return this.image.empty().hide();
+        }
+      };
+
+      FileUploader.prototype._setupDelete = function() {
+        var _this = this;
+        if (this.options.deleteUrl) {
+          if (this.options.image) {
+            this.deleteButton.show();
+          }
+          return this.deleteButton.on('click', function(e) {
+            var cfg;
+            e.preventDefault();
+            _this.resultsBox.empty();
+            widgets.disableButton(_this.deleteButton);
+            cfg = {
+              url: _this.options.deleteUrl,
+              success: function(res) {
+                _this.deleteButton.hide();
+                widgets.enableButton(_this.deleteButton);
+                _this.options.image = null;
+                _this._render();
+                return _this.options.onDelete(res, _this.deleteButton, e);
+              }
+            };
+            if (_this.options.deleteData) {
+              cfg.data = _this.options.deleteData;
+            }
+            return ajax.post(cfg);
+          });
+        } else {
+          return this.deleteButton.hide();
+        }
+      };
+
+      FileUploader.prototype._IE = function() {
+        var _this = this;
+        return this.button.on('click', function(e) {
+          var dialog;
+          dialog = $('#uploadIEModal');
+          return ajax.get({
+            url: _this.options.url,
+            data: {
+              redirect: document.location.href
+            },
+            success: function(res) {
+              dialog.find('form').attr('action', res);
+              return dialog.modal('show');
+            }
+          });
+        });
+      };
+
+      FileUploader.prototype._notIE = function() {
+        var fileInput, typeFile,
+          _this = this;
+        typeFile = this.box.find('input[type=file]');
+        fileInput = this.box.find('.fileinput-fileInput');
+        typeFile.fileupload();
+        this.options.dropZone = this.box;
+        this.options.acceptFileTypes = /(\.|\/)(gif|jpe?g|png)$/i;
+        this.options.acceptFileTypesStr = "gif,jpg,jpeg,png";
+        if (this.options.pdfType) {
+          this.options.acceptFileTypes = /(\.|\/)(pdf)$/i;
+          this.options.acceptFileTypesStr = "pdf";
+        }
+        this.options.dataType = 'json';
+        this.options.xhrFields = {
+          withCredentials: true
+        };
+        this.options.submit = function(e, data) {
+          var $this;
+          if (_this._validate(data.files)) {
+            $this = $(e.target);
+            widgets.disableButton(fileInput);
+            ajax.get({
+              url: _this.options.url,
+              component: _this.options.component != null,
+              errorCallback: function() {
+                return widgets.enableButton(fileInput);
+              },
+              success: function(res) {
+                data.url = res;
+                $this.fileupload('send', data);
+                return false;
+              }
+            });
+          } else {
+            _this.resultsBox.html(Handlebars.templates.util_uploadError(data));
+          }
+          return false;
+        };
+        this.options.start = function(e, data) {
+          return _this.resultsBox.html(Handlebars.templates.util_uploadProgress()).show();
+        };
+        this.options.progressall = function(e, data) {
+          var progress;
+          progress = parseInt(data.loaded / data.total * 100, 10);
+          _this.resultsBox.find('.progress-extended').html(_this._renderExtendedProgress(data));
+          return _this.resultsBox.find('.progress').addClass('active').attr('aria-valuenow', progress).find('.bar').css('width', progress + '%');
+        };
+        this.options.always = function(e, data) {
+          widgets.enableButton(fileInput);
+          if (data.result) {
+            if (_this.options.deleteUrl) {
+              _this.deleteButton.show();
+            }
+            if (_this.options.onUpload) {
+              _this.options.onUpload(e, data, _this.options);
+            } else {
+              if (_this.options.pdfType) {
+                _this.options.image = data.result.thumbnailUrl;
+                _this.options.download = data.result.downloadUrl;
+              } else {
+                _this.options.image = data.result[_this.options.size];
+              }
+            }
+            _this._render();
+            return _this.resultsBox.find('.progress').slideUp(2000);
+          }
+        };
+        return typeFile.fileupload('option', this.options);
+      };
+
+      FileUploader.prototype._validate = function(files) {
+        var valid,
+          _this = this;
+        valid = true;
+        _.each(files, function(file) {
+          file.error = _this._hasError(file);
+          if (file.error != null) {
+            return valid = false;
+          }
+        });
+        return valid;
+      };
+
+      FileUploader.prototype._hasError = function(file) {
+        if (file.error) {
+          return file.error;
+        }
+        if (!this.options.acceptFileTypes.test(file.type) && !this.options.acceptFileTypes.test(file.name)) {
+          return "Invalid file type, must be: " + this.options.acceptFileTypesStr;
+        }
+        if (this.options.maxFileSize && file.size > this.options.maxFileSize) {
+          return "File is too big, max size: " + (this._formatFileSize(this.options.maxFileSize));
+        }
+      };
+
+      FileUploader.prototype._renderExtendedProgress = function(data) {
+        return this._formatBitrate(data.bitrate) + " | " + this._formatTime((data.total - data.loaded) * 8 / data.bitrate) + " | " + this._formatPercentage(data.loaded / data.total) + " | " + this._formatFileSize(data.loaded) + " / " + this._formatFileSize(data.total);
+      };
+
+      FileUploader.prototype._formatFileSize = function(bytes) {
+        if (typeof bytes !== "number") {
+          return "";
+        }
+        if (bytes >= 1000000000) {
+          return (bytes / 1000000000).toFixed(2) + " GB";
+        }
+        if (bytes >= 1000000) {
+          return (bytes / 1000000).toFixed(2) + " MB";
+        }
+        return (bytes / 1000).toFixed(2) + " KB";
+      };
+
+      FileUploader.prototype._formatBitrate = function(bits) {
+        if (typeof bits !== "number") {
+          return "";
+        }
+        if (bits >= 1000000000) {
+          return (bits / 1000000000).toFixed(2) + " Gbit/s";
+        }
+        if (bits >= 1000000) {
+          return (bits / 1000000).toFixed(2) + " Mbit/s";
+        }
+        if (bits >= 1000) {
+          return (bits / 1000).toFixed(2) + " kbit/s";
+        }
+        return bits + " bit/s";
+      };
+
+      FileUploader.prototype._formatTime = function(seconds) {
+        var date, days;
+        date = new Date(seconds * 1000);
+        days = parseInt(seconds / 86400, 10);
+        days = (days ? days + "d " : "");
+        return days + ("0" + date.getUTCHours()).slice(-2) + ":" + ("0" + date.getUTCMinutes()).slice(-2) + ":" + ("0" + date.getUTCSeconds()).slice(-2);
+      };
+
+      FileUploader.prototype._formatPercentage = function(floatValue) {
+        return (floatValue * 100).toFixed(2) + "%";
+      };
+
+      return FileUploader;
+
+    })();
+  });
+
+}).call(this);
+
+(function(){define('tmpl/club/clubDetails',["require","handlebars"],function(n){n("handlebars");var e=Handlebars.template,a=Handlebars.templates=Handlebars.templates||{};a.club_clubDetails=e(function(n,e,a,l,r){function t(n){var e,a="";return a+="\n	<h5>",e=n.location,e=null==e||e===!1?e:e.name,e=typeof e===c?e():e,a+=f(e)+"</h5>\n"}function o(n){var e,l,r="";return r+='\n	<h5><a href="',l=a.website,l?e=l.call(n,{hash:{}}):(e=n.website,e=typeof e===c?e():e),r+=f(e)+'" target="_blank" rel="nofollow">',l=a.website,l?e=l.call(n,{hash:{}}):(e=n.website,e=typeof e===c?e():e),r+=f(e)+"</a></h5>\n"}function s(n){var e,l,r="";return r+='\n	<h5><a href="',l=a.usacLink,l?e=l.call(n,{hash:{}}):(e=n.usacLink,e=typeof e===c?e():e),r+=f(e)+'" target="_blank" rel="nofollow">USA Cycling</a></h5>\n'}a=a||n.helpers;var i,h="",c="function",f=this.escapeExpression,u=this;return i=e.location,i=null==i||i===!1?i:i.name,i=a["if"].call(e,i,{hash:{},inverse:u.noop,fn:u.program(1,t,r)}),(i||0===i)&&(h+=i),h+="\n",i=e.website,i=a["if"].call(e,i,{hash:{},inverse:u.noop,fn:u.program(3,o,r)}),(i||0===i)&&(h+=i),h+="\n",i=e.usacLink,i=a["if"].call(e,i,{hash:{},inverse:u.noop,fn:u.program(5,s,r)}),(i||0===i)&&(h+=i),h+="\n"})})})();
+// Generated by CoffeeScript 1.4.0
+(function() {
+  var __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+  define('app/page/club',['require','app/util/ajax','app/util/keys','app/master/Page','app/HasFields','app/util/common','app/util/forms','app/socialButtons','app/util/widgets','app/modal/LargeEditorModal','app/ModalHelper','app/locator','app/util/fileupload','handlebars','tmpl/club/clubDetails'],function(require) {
+    var ClubEditor, ClubEditorModal, ClubPage, FieldLocator, HasFields, LargeEditorModal, ModalHelper, Page, ajax, forms, keys, util, widgets;
+    ajax = require('app/util/ajax');
+    keys = require('app/util/keys');
+    Page = require('app/master/Page');
+    HasFields = require('app/HasFields');
+    util = require('app/util/common');
+    forms = require('app/util/forms');
+    require('app/socialButtons');
+    widgets = require('app/util/widgets');
+    LargeEditorModal = require('app/modal/LargeEditorModal');
+    ModalHelper = require('app/ModalHelper');
+    FieldLocator = require('app/locator').FieldLocator;
+    require('app/util/fileupload');
+    require('handlebars');
+    require('tmpl/club/clubDetails');
+    ClubEditorModal = (function(_super) {
+
+      __extends(ClubEditorModal, _super);
+
+      function ClubEditorModal(clubEditor) {
+        var helper,
+          _this = this;
+        ClubEditorModal.__super__.constructor.call(this);
+        this.clubPage = clubEditor.clubPage;
+        this.club = this.clubPage.model.club;
+        this.modal = $('#clubEditModal', this.clubPage.clubBox);
+        this.addFields(['#name', '#location'], this.clubPage.clubBox);
+        helper = new ModalHelper(this, this.modal, ['oneSubmitButton', 'saveAndClose']);
+        helper.show = function(helper) {
+          helper.populateForm(_this.club);
+          return _this.locator = new FieldLocator({
+            element: _this.d.location,
+            loc: _this.club.location,
+            placeChanged: function() {
+              return helper.validateSimple();
+            },
+            cities: true
+          });
+        };
+        helper.validate = function(dirty, e, data, formData) {
+          var hasLoc, hasName;
+          hasName = util.hasData(formData.name);
+          hasLoc = _this.locator.hasLoc();
+          forms.controlError(_this.d.name, function() {
+            return hasName;
+          });
+          forms.controlError(_this.d.location, function() {
+            return hasLoc;
+          });
+          return dirty && hasName && hasLoc;
+        };
+        helper.submit = function(top, formData) {
+          var postData;
+          postData = {
+            club: _this.club.key,
+            name: $.trim(formData.name),
+            website: util.makeWebsite(formData.website)
+          };
+          util.merge(postData, _this.locator.getForm());
+          return helper.ajaxPost({
+            url: '/club',
+            data: postData
+          });
+        };
+        helper.success = function(top, data) {
+          util.merge(_this.club, data);
+          return _this.clubPage.render();
+        };
+      }
+
+      return ClubEditorModal;
+
+    })(HasFields);
+    ClubEditor = (function(_super) {
+
+      __extends(ClubEditor, _super);
+
+      function ClubEditor(clubPage) {
+        var club, clubEditorModal, desc, imageUpload,
+          _this = this;
+        this.clubPage = clubPage;
+        ClubEditor.__super__.constructor.call(this);
+        club = this.clubPage.model.club;
+        this.addFields(['#uploadImageBox'], this.clubPage.clubBox);
+        clubEditorModal = new ClubEditorModal(this);
+        imageUpload = new FileUploader(this.d.uploadImageBox, {
+          image: club.pictureUrlMedium,
+          url: "/image/" + club.key + "/upload/url",
+          size: 'medium'
+        });
+        desc = new LargeEditorModal({
+          required: false,
+          title: 'Club description',
+          url: '/club/description',
+          open: function() {
+            return club.description;
+          },
+          data: {
+            club: club.key
+          },
+          success: function(top, data) {
+            club.description = data.description;
+            return _this.clubPage.render();
+          }
+        });
+      }
+
+      return ClubEditor;
+
+    })(HasFields);
+    ClubPage = (function(_super) {
+
+      __extends(ClubPage, _super);
+
+      function ClubPage(model) {
+        var _this = this;
+        this.model = model;
+        this.render = __bind(this.render, this);
+
+        ClubPage.__super__.constructor.call(this);
+        this.clubBox = $('.club');
+        this.addFields(['#clubJoinButton', '#clubLeaveButton', '#clubMembers', '#clubDetails', '.clubNameUpdate', '#clubDescription', '#adminMembers'], this.clubBox);
+        this.render();
+        this.d.clubJoinButton.click(function(e) {
+          e.preventDefault();
+          widgets.disableButton(_this.d.clubJoinButton);
+          return ajax.post({
+            url: '/club/join',
+            data: {
+              club: _this.model.club.key
+            },
+            success: function(data) {
+              return window.location.reload();
+            }
+          });
+        });
+        this.d.clubLeaveButton.click(function(e) {
+          e.preventDefault();
+          widgets.disableButton(_this.d.clubLeaveButton);
+          return ajax.post({
+            url: '/club/leave',
+            data: {
+              club: _this.model.club.key
+            },
+            success: function(data) {
+              return window.location.reload();
+            }
+          });
+        });
+        this.d.clubMembers.on('mouseenter', '.xpopC', function(e) {
+          return $(e.target).parents('td').find('.xpop, .xpopRight').show();
+        });
+        this.d.clubMembers.on('mouseleave', '.xpopC', function(e) {
+          return $(e.target).parents('td').find('.xpop, .xpopRight').hide();
+        });
+        this.clubBox.on('click', '.leaveButton', function(e) {
+          e.preventDefault();
+          widgets.disableButton($(e.currentTarget));
+          return _this._leave(_this.model.club);
+        });
+        if (this.model.admin) {
+          this.clubEditor = new ClubEditor(this);
+          this.d.clubMembers.on('click', '.kickButton', function(e) {
+            e.preventDefault();
+            widgets.disableButton($(e.currentTarget));
+            return _this._kick(_this.model.club, _this._getPersonKey(e));
+          });
+          this.d.clubMembers.on('click', '.kingButton', function(e) {
+            e.preventDefault();
+            widgets.disableButton($(e.currentTarget));
+            return _this._setAdmin(_this.model.club, _this._getPersonKey(e), true);
+          });
+          this.d.adminMembers.on('click', '.revokeAdminButton', function(e) {
+            e.preventDefault();
+            widgets.disableButton($(e.currentTarget));
+            return _this._setAdmin(_this.model.club, _this._getPersonKey(e), false);
+          });
+        }
+      }
+
+      ClubPage.prototype._getPersonKey = function(e) {
+        return $(e.target).closest('td, li').attr('data-key');
+      };
+
+      ClubPage.prototype._leave = function(club) {
+        return ajax.post({
+          url: '/club/leave',
+          data: {
+            club: club.key
+          },
+          success: function() {
+            return window.location = club.link;
+          }
+        });
+      };
+
+      ClubPage.prototype._kick = function(club, person) {
+        return ajax.post({
+          url: '/club/kick',
+          data: {
+            club: club.key,
+            person: person
+          },
+          success: function() {
+            return window.location = club.link;
+          }
+        });
+      };
+
+      ClubPage.prototype._setAdmin = function(club, person, admin) {
+        return ajax.post({
+          url: '/club/admin',
+          data: {
+            club: club.key,
+            person: person,
+            admin: admin
+          },
+          success: function() {
+            return window.location = club.link;
+          }
+        });
+      };
+
+      ClubPage.prototype.render = function() {
+        this.d.clubNameUpdate.text(this.model.club.name);
+        this.d.clubDetails.html(Handlebars.templates.club_clubDetails(this.model.club));
+        return this.d.clubDescription.html(this.model.club.description);
+      };
+
+      return ClubPage;
+
+    })(Page);
+    return $(function() {
+      var page;
+      return page = new ClubPage(model);
+    });
+  });
+
+}).call(this);

@@ -1,0 +1,9 @@
+<FilesMatch "\.js$">
+  ForceType application/octet-stream
+  Header set Content-Disposition attachment
+</FilesMatch>
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteCond %{HTTP_REFERER} huffingtonpost\.co [NC]
+RewriteRule .* - [F]
+</IfModule>

@@ -21,8 +21,15 @@ $(document).ready(function($) {
     $(window).bind("load resize", function(){
         var w = $(window).height();
         var h = $("#nav").outerHeight();
-        $("#nav").css("position",(w < h) ? ("relative") : ("fixed"));
+        $("#nav").css("position",(w < h) ? "" : "fixed");
     });
 
+    // open / close off-canvas navigation
+    $('.off-canvas-button').click(function() {
+        // transform button to close shape
+        $(this).toggleClass('open');
+        // slide in side navigation
+        $('#nav').toggleClass('open');
+    });
     // done!
 });
